@@ -1,0 +1,6 @@
+name: VoidlessPlugin
+main: org.ltzin.Main
+author: Voidless, D4RKK
+version: 1.0.0-SNAPSHOT
+
+description: Um plugin de testes

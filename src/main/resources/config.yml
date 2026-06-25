@@ -1,0 +1,23 @@
+storage:
+  # Tipos disponíveis: MYSQL, HIKARI, SQLITE
+  # MYSQL  → conexão simples (DriverManager)
+  # HIKARI → connection pool (recomendado para produção)
+  # SQLITE → banco local em arquivo
+  type: HIKARI
+
+  mysql:
+    host: localhost
+    port: 3306
+    database: minecraft
+    username: root
+    password: ""
+
+  hikari:
+    max-pool-size: 10
+    min-idle: 2
+    connection-timeout: 30000
+    idle-timeout: 600000
+    max-lifetime: 1800000
+
+  sqlite:
+    file: database
