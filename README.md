@@ -330,5 +330,5 @@ O JAR final estará em `target/` com o sufixo `-shaded.jar`.
 ---
 
 <div align="center">
-  Feito com ☕ por <strong>D4RKK Community</strong>
+  Feito com ☕ por <strong>João M.</strong>
 </div>
