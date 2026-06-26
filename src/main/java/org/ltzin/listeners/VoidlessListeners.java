@@ -8,19 +8,12 @@ import org.bukkit.event.player.AsyncPlayerPreLoginEvent;
 import org.bukkit.event.player.PlayerLoginEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.ltzin.Main;
-import org.ltzin.api.VoidlessAPI;
-import org.ltzin.database.data.DataContainer;
-import org.ltzin.database.tables.VoidlessTable;
 import org.ltzin.logger.VLogger;
-
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+import org.ltzin.player.Profile;
 
 public class VoidlessListeners implements Listener {
 
     private static final VLogger LOGGER = Main.getInstance().getMyLogger();
-
-    private static final Map<String, Map<String, DataContainer>> PROFILE_CACHE = new ConcurrentHashMap<>();
 
     public static void setup() {
         Main.getInstance().getServer().getPluginManager()
@@ -36,16 +29,12 @@ public class VoidlessListeners implements Listener {
         String playerName = evt.getName();
 
         try {
-            // load() já faz INSERT com defaults se for jogador novo
-            Map<String, DataContainer> data = VoidlessAPI.get()
-                    .players()
-                    .load(playerName, VoidlessTable.class);
+            Profile profile = Profile.load(playerName, Main.getInstance().getStorage());
 
-            if (data == null) {
-                throw new RuntimeException("Retorno nulo ao carregar dados de " + playerName);
+            if (profile == null) {
+                throw new RuntimeException("Retorno nulo ao carregar perfil de " + playerName);
             }
 
-            PROFILE_CACHE.put(playerName.toLowerCase(), data);
             LOGGER.info("Perfil carregado: " + playerName);
 
         } catch (Exception ex) {
@@ -53,57 +42,48 @@ public class VoidlessListeners implements Listener {
             ex.printStackTrace();
 
             evt.disallow(
-                AsyncPlayerPreLoginEvent.Result.KICK_OTHER,
-                "§cFalha ao carregar seu perfil. Tente novamente."
+                    AsyncPlayerPreLoginEvent.Result.KICK_OTHER,
+                    "§cFalha ao carregar seu perfil. Tente novamente."
             );
         }
     }
 
     @EventHandler(priority = EventPriority.MONITOR)
     public void onPlayerLogin(PlayerLoginEvent evt) {
-        String playerName = evt.getPlayer().getName();
+        Player player = evt.getPlayer();
+        Profile profile = Profile.getProfile(player.getName());
 
-        if (!PROFILE_CACHE.containsKey(playerName.toLowerCase())) {
+        if (profile == null) {
             evt.disallow(
-                PlayerLoginEvent.Result.KICK_OTHER,
-                "§cSeu perfil não pôde ser carregado.\n§cIsso ocorre quando o servidor ainda não está pronto. Tente novamente."
+                    PlayerLoginEvent.Result.KICK_OTHER,
+                    "§cSeu perfil não pôde ser carregado.\n§cIsso ocorre quando o servidor ainda não está pronto. Tente novamente."
             );
+            return;
         }
+
+        profile.setPlayer(player);
     }
 
     @EventHandler(priority = EventPriority.MONITOR)
     public void onPlayerQuit(PlayerQuitEvent evt) {
-        Player player = evt.getPlayer();
-        String playerName = player.getName();
+        String playerName = evt.getPlayer().getName();
+        Profile profile = Profile.getProfile(playerName);
 
-        Map<String, DataContainer> data = PROFILE_CACHE.remove(playerName.toLowerCase());
-        if (data == null) {
+        if (profile == null) {
             return;
         }
 
         Main.getInstance().getServer().getScheduler()
                 .runTaskAsynchronously(Main.getInstance(), () -> {
                     try {
-                        VoidlessAPI.get().players().save(playerName, data, VoidlessTable.class);
+                        profile.save(Main.getInstance().getStorage());
                         LOGGER.info("Perfil salvo: " + playerName);
                     } catch (Exception ex) {
                         LOGGER.warning("Falha ao salvar perfil de " + playerName + ": " + ex.getMessage());
                         ex.printStackTrace();
+                    } finally {
+                        Profile.unload(playerName);
                     }
                 });
-    }
-
-
-    public static Map<String, DataContainer> getProfile(String playerName) {
-        return PROFILE_CACHE.get(playerName.toLowerCase());
-    }
-
-    public static DataContainer get(String playerName, String field) {
-        Map<String, DataContainer> profile = getProfile(playerName);
-        return profile != null ? profile.get(field) : null;
-    }
-
-    public static boolean isLoaded(String playerName) {
-        return PROFILE_CACHE.containsKey(playerName.toLowerCase());
     }
 }
