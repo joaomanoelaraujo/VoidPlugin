@@ -43,7 +43,6 @@ public class PlayerDataAPI {
             if (rs.next()) {
                 return fromResultSet(rs, table.getDefaultValues());
             } else {
-                // Jogador não existe — insere com defaults
                 Map<String, DataContainer> defaults = table.getDefaultValues();
                 insert(playerName, defaults, info);
                 return defaults;
@@ -78,7 +77,6 @@ public class PlayerDataAPI {
             ps.setString(i, playerName.toLowerCase());
             ps.executeUpdate();
 
-            // Reset do flag updated
             data.values().forEach(dc -> dc.setUpdated(false));
 
         } catch (SQLException ex) {
@@ -139,10 +137,6 @@ public class PlayerDataAPI {
             return false;
         }
     }
-
-    // -------------------------------------------------------
-    //  Helpers internos
-    // -------------------------------------------------------
 
     private void insert(String playerName, Map<String, DataContainer> defaults, DataTableInfo info) {
         try (Connection conn = storage.getConnection();

@@ -7,6 +7,7 @@ import org.ltzin.database.data.DataTable;
 import org.ltzin.database.data.interfaces.AbstractContainer;
 import org.ltzin.database.data.interfaces.DataTableInfo;
 import org.ltzin.database.storage.implementation.StorageImplementation;
+import org.ltzin.skin.SkinData;
 
 import java.sql.*;
 import java.util.*;
@@ -21,6 +22,12 @@ public class Profile {
     private Player player;
 
     private Map<String, Map<String, DataContainer>> tableMap;
+
+    /**
+     * Skin buscada durante o AsyncPlayerPreLoginEvent e aplicada no PlayerJoinEvent.
+     * Transitória: descartada após a aplicação para não ocupar memória.
+     */
+    private volatile SkinData pendingSkin;
 
     private Profile(String name) {
         this.name     = name;
@@ -65,8 +72,8 @@ public class Profile {
     }
 
     private Map<String, DataContainer> loadRow(StorageImplementation storage,
-                                                DataTableInfo info,
-                                                String playerName) throws SQLException {
+                                               DataTableInfo info,
+                                               String playerName) throws SQLException {
 
         DataTable table = findTable(info.name());
 
@@ -83,7 +90,7 @@ public class Profile {
 
                     for (int i = 1; i <= cols; i++) {
                         String col = meta.getColumnName(i);
-                        if (col.equalsIgnoreCase("name")) continue; // PK, não precisamos guardar
+                        if (col.equalsIgnoreCase("name")) continue;
                         Object val = rs.getObject(i);
                         row.put(col, new DataContainer(val != null ? val : ""));
                     }
@@ -171,8 +178,9 @@ public class Profile {
     }
 
     public void destroy() {
-        this.name   = null;
-        this.player = null;
+        this.name        = null;
+        this.player      = null;
+        this.pendingSkin = null;
 
         if (this.tableMap != null) {
             this.tableMap.values().forEach(row -> {
@@ -183,6 +191,65 @@ public class Profile {
             this.tableMap = null;
         }
     }
+
+
+    public void setPendingSkin(SkinData skin) {
+        this.pendingSkin = skin;
+    }
+
+    /**
+     * Retorna e limpa a skin pendente (consumo único).
+     */
+    public SkinData consumePendingSkin() {
+        SkinData skin    = this.pendingSkin;
+        this.pendingSkin = null;
+        return skin;
+    }
+
+    public boolean hasPendingSkin() {
+        return pendingSkin != null;
+    }
+
+
+    private static final String SKIN_DELIMITER = ";;";
+
+
+    public void setSkinData(SkinData skin) {
+        DataContainer dc = getDataContainer("VoidProfile", "skin");
+        if (dc == null) return;
+
+        if (skin == null || skin.getValue() == null) {
+            dc.set("");
+            return;
+        }
+
+        String signature = skin.getSignature() != null ? skin.getSignature() : "";
+        dc.set(skin.getValue() + SKIN_DELIMITER + signature);
+    }
+
+
+    public SkinData getSkinData() {
+        DataContainer dc = getDataContainer("VoidProfile", "skin");
+        if (dc == null) return null;
+
+        String raw = dc.getAsString();
+        if (raw == null || raw.isEmpty()) return null;
+
+        int idx = raw.indexOf(SKIN_DELIMITER);
+        if (idx == -1) return new SkinData(raw, null);
+
+        String value     = raw.substring(0, idx);
+        String signature = raw.substring(idx + SKIN_DELIMITER.length());
+        return new SkinData(value, signature.isEmpty() ? null : signature);
+    }
+
+    public boolean hasCustomSkin() {
+        DataContainer dc = getDataContainer("VoidProfile", "skin");
+        if (dc == null) return false;
+        String raw = dc.getAsString();
+        return raw != null && !raw.isEmpty();
+    }
+
 
     public DataContainer getDataContainer(String tableName, String key) {
         if (tableMap == null) return null;
@@ -266,6 +333,7 @@ public class Profile {
         return dc != null ? dc.getAsLong() : 0L;
     }
 
+
     public String getName() {
         return name;
     }
@@ -289,13 +357,13 @@ public class Profile {
         return tableMap;
     }
 
+
     private static DataTable findTable(String tableName) {
         for (DataTable t : DataTable.listTables()) {
             if (t.getInfo().name().equalsIgnoreCase(tableName)) return t;
         }
         return null;
     }
-
 
     private static List<String> parseSetColumns(String updateSQL) {
         List<String> cols = new ArrayList<>();

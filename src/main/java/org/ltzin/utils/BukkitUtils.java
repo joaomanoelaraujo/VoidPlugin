@@ -255,7 +255,6 @@ public final class BukkitUtils {
         raw = color(raw).replace("\\n", "\n");
         String[] tokens = raw.split(" : ");
 
-        // --- resolve material ---
         String matToken = tokens[0].trim();
         String[] matParts = matToken.split(":", 2);
         String matName = matParts[0].trim();
@@ -519,7 +518,6 @@ public final class BukkitUtils {
             String name = normalizeParticle19(particleName);
             Object particle = Enum.valueOf((Class<Enum>) particleEnum, name);
 
-            // Player#spawnParticle(Particle, double, double, double, int, double, double, double, double)
             Method m = Player.class.getMethod(
                     "spawnParticle", particleEnum,
                     double.class, double.class, double.class,

@@ -77,7 +77,6 @@ public class MySQLDatabase implements StorageImplementation {
             } catch (SQLException e) {
                 e.printStackTrace();
             } finally {
-                // Invalida a referência para que getConnection() saiba que precisa reconectar
                 connection = null;
             }
         }
@@ -102,13 +101,6 @@ public class MySQLDatabase implements StorageImplementation {
         }
     }
 
-    // -----------------------------------------------------------------------
-    // Helpers
-    // -----------------------------------------------------------------------
-
-    /**
-     * Verifica se a conexão subjacente está viva sem lançar exceção não tratada.
-     */
     private boolean isConnectionAlive() {
         try {
             return connection != null && !connection.isClosed() && connection.isValid(2);

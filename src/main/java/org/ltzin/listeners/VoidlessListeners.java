@@ -5,15 +5,22 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.AsyncPlayerPreLoginEvent;
+import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerLoginEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.ltzin.Main;
 import org.ltzin.logger.VLogger;
 import org.ltzin.player.Profile;
+import org.ltzin.skin.SkinApplier;
+import org.ltzin.skin.SkinData;
+import org.ltzin.skin.SkinFetcher;
 
 public class VoidlessListeners implements Listener {
 
     private static final VLogger LOGGER = Main.getInstance().getMyLogger();
+
+    private static final SkinFetcher SKIN_FETCHER = new SkinFetcher(Main.getInstance().getLogger());
+    private static final SkinApplier SKIN_APPLIER = new SkinApplier(Main.getInstance().getLogger());
 
     public static void setup() {
         Main.getInstance().getServer().getPluginManager()
@@ -37,6 +44,15 @@ public class VoidlessListeners implements Listener {
 
             LOGGER.info("Perfil carregado: " + playerName);
 
+            SkinData skin = SKIN_FETCHER.fetch(playerName);
+
+            if (skin != null) {
+                profile.setPendingSkin(skin);
+                LOGGER.info("Skin obtida para: " + playerName);
+            } else {
+                LOGGER.info("Sem skin Mojang para: " + playerName + " (nick não encontrado ou sem conta premium)");
+            }
+
         } catch (Exception ex) {
             LOGGER.warning("Falha ao carregar perfil de " + playerName + ": " + ex.getMessage());
             ex.printStackTrace();
@@ -50,7 +66,7 @@ public class VoidlessListeners implements Listener {
 
     @EventHandler(priority = EventPriority.MONITOR)
     public void onPlayerLogin(PlayerLoginEvent evt) {
-        Player player = evt.getPlayer();
+        Player  player  = evt.getPlayer();
         Profile profile = Profile.getProfile(player.getName());
 
         if (profile == null) {
@@ -65,9 +81,24 @@ public class VoidlessListeners implements Listener {
     }
 
     @EventHandler(priority = EventPriority.MONITOR)
+    public void onPlayerJoin(PlayerJoinEvent evt) {
+        Player  player  = evt.getPlayer();
+        Profile profile = Profile.getProfile(player.getName());
+
+        if (profile == null || !profile.hasPendingSkin()) {
+            return;
+        }
+
+        SkinData skin = profile.consumePendingSkin();
+        SKIN_APPLIER.apply(player, skin);
+        LOGGER.info("Skin aplicada: " + player.getName());
+    }
+
+
+    @EventHandler(priority = EventPriority.MONITOR)
     public void onPlayerQuit(PlayerQuitEvent evt) {
-        String playerName = evt.getPlayer().getName();
-        Profile profile = Profile.getProfile(playerName);
+        String  playerName = evt.getPlayer().getName();
+        Profile profile    = Profile.getProfile(playerName);
 
         if (profile == null) {
             return;
@@ -85,5 +116,13 @@ public class VoidlessListeners implements Listener {
                         Profile.unload(playerName);
                     }
                 });
+    }
+
+    public static SkinFetcher getSkinFetcher() {
+        return SKIN_FETCHER;
+    }
+
+    public static SkinApplier getSkinApplier() {
+        return SKIN_APPLIER;
     }
 }

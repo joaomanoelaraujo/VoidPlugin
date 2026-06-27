@@ -21,24 +21,16 @@ public class NonClosableConnection implements Connection {
         this.delegate = delegate;
     }
 
-    /** Intencionalmente vazio — não fecha o delegate real. */
     @Override
     public void close() throws SQLException {
-        // no-op
     }
 
-    /**
-     * Repassa isClosed() ao delegate para que os chamadores saibam
-     * quando a conexão subjacente foi encerrada pelo shutdown().
-     */
+
     @Override
     public boolean isClosed() throws SQLException {
         return delegate.isClosed();
     }
 
-    // -----------------------------------------------------------------------
-    // Delegate puro — todos os demais métodos repassam ao delegate real
-    // -----------------------------------------------------------------------
 
     @Override public Statement createStatement() throws SQLException { return delegate.createStatement(); }
     @Override public PreparedStatement prepareStatement(String sql) throws SQLException { return delegate.prepareStatement(sql); }
