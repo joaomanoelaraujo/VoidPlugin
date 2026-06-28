@@ -18,12 +18,14 @@ import java.util.Map;
                 + "`lastlogin` LONG, "
                 + "`preferences` TEXT, "
                 + "`skin` TEXT, "
+                + "`delivery_claims` TEXT, "
                 + "PRIMARY KEY(`name`)"
                 + ") ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE utf8_bin;",
         select = "SELECT * FROM `VoidProfile` WHERE LOWER(`name`) = ?",
-        insert = "INSERT INTO `VoidProfile` VALUES (?, ?, ?, ?, ?, ?, ?)",
+        insert = "INSERT INTO `VoidProfile` VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
         update = "UPDATE `VoidProfile` SET "
-                + "`cash` = ?, `role` = ?, `created` = ?, `lastlogin` = ?, `preferences` = ?, `skin` = ? "
+                + "`cash` = ?, `role` = ?, `created` = ?, `lastlogin` = ?, "
+                + "`preferences` = ?, `skin` = ?, `delivery_claims` = ? "
                 + "WHERE LOWER(`name`) = ?"
 )
 public class VoidlessTable extends DataTable {
@@ -35,16 +37,17 @@ public class VoidlessTable extends DataTable {
     @Override
     public Map<String, DataContainer> getDefaultValues() {
         Map<String, DataContainer> defaults = new LinkedHashMap<>();
-        defaults.put("cash",        new DataContainer(0L));
-        defaults.put("role",        new DataContainer("Membro"));
-        defaults.put("created",     new DataContainer(System.currentTimeMillis()));
-        defaults.put("lastlogin",   new DataContainer(System.currentTimeMillis()));
-        defaults.put("preferences", new DataContainer(
+        defaults.put("cash",            new DataContainer(0L));
+        defaults.put("role",            new DataContainer("Membro"));
+        defaults.put("created",         new DataContainer(System.currentTimeMillis()));
+        defaults.put("lastlogin",       new DataContainer(System.currentTimeMillis()));
+        defaults.put("preferences",     new DataContainer(
                 "{\"pv\": 0, \"pm\": 0, \"mn\": 0, \"ch\": 0, \"wf\": 0, \"lm\": 0, " +
                         "\"td\": 0, \"fly\": 1, \"aq\": 1, \"mr\": 1, \"bp\": 1, \"ms\": 1, " +
                         "\"gc\": 0, \"gn\": 0, \"bg\": 0, \"cm\": 0, \"pl\": 0, \"mm\": 1}"
         ));
-        defaults.put("skin", new DataContainer(""));
+        defaults.put("skin",            new DataContainer(""));
+        defaults.put("delivery_claims", new DataContainer(""));
         return defaults;
     }
 }

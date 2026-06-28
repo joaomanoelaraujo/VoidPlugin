@@ -197,9 +197,7 @@ public class Profile {
         this.pendingSkin = skin;
     }
 
-    /**
-     * Retorna e limpa a skin pendente (consumo único).
-     */
+
     public SkinData consumePendingSkin() {
         SkinData skin    = this.pendingSkin;
         this.pendingSkin = null;

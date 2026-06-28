@@ -1,5 +1,6 @@
 package org.ltzin.listeners;
 
+import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -44,13 +45,19 @@ public class VoidlessListeners implements Listener {
 
             LOGGER.info("Perfil carregado: " + playerName);
 
-            SkinData skin = SKIN_FETCHER.fetch(playerName);
 
-            if (skin != null) {
-                profile.setPendingSkin(skin);
-                LOGGER.info("Skin obtida para: " + playerName);
+            if (profile.hasCustomSkin()) {
+                profile.setPendingSkin(profile.getSkinData());
+                LOGGER.info("Skin customizada restaurada para: " + playerName);
             } else {
-                LOGGER.info("Sem skin Mojang para: " + playerName + " (nick não encontrado ou sem conta premium)");
+                SkinData mojangSkin = SKIN_FETCHER.fetch(playerName);
+                if (mojangSkin != null) {
+                    profile.setPendingSkin(mojangSkin);
+                    LOGGER.info("Skin Mojang obtida para: " + playerName);
+                } else {
+                    LOGGER.info("Sem skin para: " + playerName
+                            + " (sem conta premium e sem skin customizada)");
+                }
             }
 
         } catch (Exception ex) {
@@ -72,7 +79,8 @@ public class VoidlessListeners implements Listener {
         if (profile == null) {
             evt.disallow(
                     PlayerLoginEvent.Result.KICK_OTHER,
-                    "§cSeu perfil não pôde ser carregado.\n§cIsso ocorre quando o servidor ainda não está pronto. Tente novamente."
+                    "§cSeu perfil não pôde ser carregado.\n§cIsso ocorre quando o servidor ainda"
+                            + " não está pronto. Tente novamente."
             );
             return;
         }
@@ -89,11 +97,14 @@ public class VoidlessListeners implements Listener {
             return;
         }
 
-        SkinData skin = profile.consumePendingSkin();
-        SKIN_APPLIER.apply(player, skin);
-        LOGGER.info("Skin aplicada: " + player.getName());
+        final SkinData skin = profile.consumePendingSkin();
+        
+        Bukkit.getScheduler().runTaskLater(Main.getInstance(), () -> {
+            if (!player.isOnline()) return;
+            SKIN_APPLIER.apply(player, skin);
+            LOGGER.info("Skin aplicada: " + player.getName());
+        }, 4L);
     }
-
 
     @EventHandler(priority = EventPriority.MONITOR)
     public void onPlayerQuit(PlayerQuitEvent evt) {
@@ -110,7 +121,8 @@ public class VoidlessListeners implements Listener {
                         profile.save(Main.getInstance().getStorage());
                         LOGGER.info("Perfil salvo: " + playerName);
                     } catch (Exception ex) {
-                        LOGGER.warning("Falha ao salvar perfil de " + playerName + ": " + ex.getMessage());
+                        LOGGER.warning("Falha ao salvar perfil de " + playerName
+                                + ": " + ex.getMessage());
                         ex.printStackTrace();
                     } finally {
                         Profile.unload(playerName);

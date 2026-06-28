@@ -54,7 +54,7 @@ public class MenuCustomize extends PlayerMenu {
                 "§a➜ §aClique aqui para redefinir. : skin>" + skinRedefinir()));
 
         this.setItem(49, BukkitUtils.deserializeItemStack(
-                "BONE : 1 : name>§cVoltar : desc>§7Clique para retornar ao menu anterior."));
+                "ARROW : 1 : name>§cVoltar : desc>§7Clique para voltar."));
 
         this.register(Main.getInstance());
         this.open();
@@ -110,7 +110,7 @@ public class MenuCustomize extends PlayerMenu {
 
                             case 49:
                                 this.player.closeInventory();
-                                new MenuCustomize(profile);
+                                new MenuProfile(profile);
                                 break;
 
                             default:

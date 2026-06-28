@@ -18,6 +18,7 @@ import org.ltzin.menus.category.MenuCategory;
 import org.ltzin.player.Profile;
 import org.ltzin.player.enums.*;
 import org.ltzin.utils.BukkitUtils;
+import org.ltzin.utils.EnumSound;
 
 public class MenuPreferences extends PlayerMenu {
 
@@ -315,11 +316,26 @@ public class MenuPreferences extends PlayerMenu {
 
         int slot = evt.getSlot();
 
-        if (slot == SLOT_CAT_INGAME  && category != MenuCategory.INGAME)  { reopen(MenuCategory.INGAME);  return; }
-        if (slot == SLOT_CAT_CHAT    && category != MenuCategory.CHAT)    { reopen(MenuCategory.CHAT);    return; }
-        if (slot == SLOT_CAT_SOCIALS && category != MenuCategory.SOCIALS) { reopen(MenuCategory.SOCIALS); return; }
-        if (slot == SLOT_CAT_LOBBY   && category != MenuCategory.LOBBY)   { reopen(MenuCategory.LOBBY);   return; }
-        if (slot == SLOT_CAT_GUILD   && category != MenuCategory.GUILD)   { reopen(MenuCategory.GUILD);   return; }
+        if (slot == SLOT_CAT_INGAME  && category != MenuCategory.INGAME)  {
+            reopen(MenuCategory.INGAME);
+            return;
+        }
+        if (slot == SLOT_CAT_CHAT    && category != MenuCategory.CHAT)    {
+            reopen(MenuCategory.CHAT);
+            return;
+        }
+        if (slot == SLOT_CAT_SOCIALS && category != MenuCategory.SOCIALS) {
+            reopen(MenuCategory.SOCIALS);
+            return;
+        }
+        if (slot == SLOT_CAT_LOBBY   && category != MenuCategory.LOBBY)   {
+            reopen(MenuCategory.LOBBY);
+            return;
+        }
+        if (slot == SLOT_CAT_GUILD   && category != MenuCategory.GUILD)   {
+            reopen(MenuCategory.GUILD);
+            return;
+        }
 
         switch (category) {
             case INGAME:
@@ -367,12 +383,14 @@ public class MenuPreferences extends PlayerMenu {
 
         if (slot == 49) {
             this.cancel();
+            EnumSound.CLICK.play(this.player, 1.0F, 2.0F);
             new MenuProfile(profile);
         }
     }
 
     private void reopen(MenuCategory cat) {
         this.cancel();
+        EnumSound.CLICK.play(this.player, 1.0F, 2.0F);
         new MenuPreferences(profile, cat);
     }
 

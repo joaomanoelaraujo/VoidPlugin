@@ -1,0 +1,77 @@
+
+#  Formato do campo "icon":
+#    {color} → &a se disponível, &c se cooldown/sem permissão
+#    {name}  → valor do campo "name" abaixo
+#
+#  Campo "slot" (opcional):
+#    Define o slot exato do inventário (0-53) onde este item aparece.
+#    Se omitido (ou -1), o item ocupa a próxima posição automática
+#    nas colunas centrais (slots 10-16, 19-25, 28-34, 37-43).
+#    Útil para deixar itens de rank em slots específicos, separados
+#    dos itens comuns.
+#
+#  Formatos de recompensa:
+#    COMANDO>tell {name} Mensagem
+#    CASH>1000
+#    BEDWARS_COINS>500
+#    SKYWARS_COINS>200
+# ============================================================
+
+deliveries:
+
+  diaria:
+    days: 1
+    permission: ""
+    name: "Recompensa Diária"
+    icon: "STORAGE_MINECART : 1 : name>{color}Recompensa Diária : desc>&7Colete sua recompensa diária!\n \n&7Recompensas:\n  &f▪ &a+500 Cash\n  &f▪ &a+100 Coins de BedWars\n\n&eClique para coletar!"
+    message: "&a✔ &fVocê coletou sua &aRecompensa Diária&f!"
+    rewards:
+      - "CASH>500"
+      - "BEDWARS_COINS>100"
+
+  semanal:
+    days: 7
+    permission: ""
+    name: "Recompensa Semanal"
+    icon: "CHEST : 1 : name>{color}Recompensa Semanal : desc>&7Colete sua recompensa semanal!\n \n&7Recompensas:\n  &f▪ &a+2000 Cash\n  &f▪ &a+500 Coins de BedWars\n  &f▪ &a+500 Coins de SkyWars\n\n&eClique para coletar!"
+    message: "&a✔ &fVocê coletou sua &aRecompensa Semanal&f!"
+    rewards:
+      - "CASH>2000"
+      - "BEDWARS_COINS>500"
+      - "SKYWARS_COINS>500"
+
+  mensal:
+    days: 30
+    permission: ""
+    name: "Recompensa Mensal"
+    icon: "ENDER_CHEST : 1 : name>{color}Recompensa Mensal : desc>&7Colete sua recompensa mensal!\n \n&7Recompensas:\n  &f▪ &a+10000 Cash\n  &f▪ &a+2000 Coins de todos os jogos\n\n&eClique para coletar!"
+    message: "&a✔ &fVocê coletou sua &aRecompensa Mensal&f!"
+    rewards:
+      - "CASH>10000"
+      - "BEDWARS_COINS>2000"
+      - "SKYWARS_COINS>2000"
+      - "THEBRIDGE_COINS>2000"
+      - "MURDER_COINS>2000"
+      - "BLOCKSUMO_COINS>2000"
+
+  vip_diaria:
+    days: 1
+    slot: 46
+    permission: "ltzin.vip"
+    name: "Entrega VIP"
+    icon: "POTION : 1 : name>{color}Entrega VIP : desc>&7Exclusiva para jogadores &6VIP&7!\n \n&7Recompensas:\n  &f▪ &a+1500 Cash\n  &f▪ &a+1 Booster 2x (12h)\n\n&eClique para coletar!"
+    message: "&a✔ &fVocê coletou sua &6Entrega VIP&f!"
+    rewards:
+      - "CASH>1500"
+      - "PRIVATE_BOOSTER>1:2.0:12"
+
+  mvp_diaria:
+    days: 1
+    slot: 47
+    permission: "ltzin.mvp"
+    name: "Entrega MVP"
+    icon: "POTION:8229 : 1 : name>{color}Entrega MVP : desc>&7Exclusiva para jogadores &bMVP&7!\n \n&7Recompensas:\n  &f▪ &a+3000 Cash\n  &f▪ &a+1 Booster de Rede 1.5x (24h)\n\n&eClique para coletar!"
+    message: "&a✔ &fVocê coletou sua &bEntrega MVP&f!"
+    rewards:
+      - "CASH>3000"
+      - "NETWORK_BOOSTER>1:1.5:24"

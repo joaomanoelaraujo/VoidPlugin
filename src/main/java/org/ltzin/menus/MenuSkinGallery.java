@@ -16,6 +16,7 @@ import org.ltzin.skin.SkinData;
 import org.ltzin.skin.SkinLibrary;
 import org.ltzin.skin.SkinPreset;
 import org.ltzin.utils.BukkitUtils;
+import org.ltzin.utils.EnumSound;
 
 import java.util.List;
 
@@ -25,16 +26,15 @@ public class MenuSkinGallery extends PlayerMenu {
     private static final int[] GRID_SLOTS = {
             10, 11, 12, 13, 14, 15, 16,
             19, 20, 21, 22, 23, 24, 25,
-            28, 29, 30, 31, 32, 33, 34,
-            37, 38, 39, 40, 41, 42, 43
+            28, 29, 30, 31, 32, 33, 34
     };
 
     private static final int PAGE_SIZE = GRID_SLOTS.length;
 
-    private static final int SLOT_VOLTAR    = 45;
-    private static final int SLOT_ANTERIOR  = 48;
-    private static final int SLOT_INDICADOR = 49;
-    private static final int SLOT_PROXIMA   = 50;
+    private static final int SLOT_VOLTAR    = 49;
+    private static final int SLOT_ANTERIOR  = 18;
+    private static final int SLOT_INDICADOR = 50;
+    private static final int SLOT_PROXIMA   = 26;
 
     private final Profile profile;
     private int page = 0;
@@ -58,27 +58,26 @@ public class MenuSkinGallery extends PlayerMenu {
         int start = page * PAGE_SIZE;
 
         for (int i = 0; i < GRID_SLOTS.length; i++) {
-            int slot = GRID_SLOTS[i];
+            int slot  = GRID_SLOTS[i];
             int index = start + i;
 
             if (index < presets.size()) {
-                SkinPreset preset = presets.get(index);
-                this.setItem(slot, buildSkinItem(preset));
+                this.setItem(slot, buildSkinItem(presets.get(index)));
             } else {
                 this.setItem(slot, new ItemStack(Material.AIR));
             }
         }
 
         this.setItem(SLOT_VOLTAR, BukkitUtils.deserializeItemStack(
-                "BONE : 1 : name>§cVoltar : desc>§7Clique para retornar ao menu anterior."));
+                "ARROW : 1 : name>§cVoltar : desc>§7Clique para retornar ao menu anterior."));
 
         boolean temAnterior = page > 0;
         boolean temProxima  = page + 1 < totalPages;
 
         this.setItem(SLOT_ANTERIOR, BukkitUtils.deserializeItemStack(
                 temAnterior
-                        ? "ARROW : 1 : name>§ePágina anterior : desc>§7Clique para voltar uma página."
-                        : "ARROW : 1 : name>§7Página anterior : desc>§7Você já está na primeira página."));
+                        ? "351:8 : 1 : name>§aPágina anterior : desc>§7Clique para voltar uma página."
+                        : "351:8 : 1 : name>§aPágina anterior : desc>§7Você já está na primeira página."));
 
         this.setItem(SLOT_INDICADOR, BukkitUtils.deserializeItemStack(
                 "PAPER : 1 : name>§ePágina " + (page + 1) + "/" + totalPages
@@ -86,8 +85,8 @@ public class MenuSkinGallery extends PlayerMenu {
 
         this.setItem(SLOT_PROXIMA, BukkitUtils.deserializeItemStack(
                 temProxima
-                        ? "ARROW : 1 : name>§ePróxima página : desc>§7Clique para avançar uma página."
-                        : "ARROW : 1 : name>§7Próxima página : desc>§7Você já está na última página."));
+                        ? "351:10 : 1 : name>§aPróxima página : desc>§7Clique para avançar uma página."
+                        : "351:10 : 1 : name>§aPróxima página : desc>§7Você já está na última página."));
     }
 
     private ItemStack buildSkinItem(SkinPreset preset) {
@@ -124,20 +123,28 @@ public class MenuSkinGallery extends PlayerMenu {
         int slot = evt.getSlot();
 
         if (slot == SLOT_VOLTAR) {
-            this.player.closeInventory();
-            new MenuCustomize(profile);
+            EnumSound.CLICK.play(this.player, 1.0F, 2.0F);
+            new MenuProfile(profile);
             return;
         }
 
         if (slot == SLOT_ANTERIOR) {
-            page--;
-            renderPage();
+            if (page > 0) { page--;
+                renderPage();
+            }
+            EnumSound.CLICK.play(this.player, 1.0F, 2.0F);
+
             return;
         }
 
         if (slot == SLOT_PROXIMA) {
-            page++;
-            renderPage();
+            EnumSound.CLICK.play(this.player, 1.0F, 2.0F);
+
+            List<SkinPreset> presets = SkinLibrary.getAll();
+            int totalPages = Math.max(1, (int) Math.ceil(presets.size() / (double) PAGE_SIZE));
+            if (page + 1 < totalPages) {
+                page++; renderPage();
+            }
             return;
         }
 
@@ -148,8 +155,7 @@ public class MenuSkinGallery extends PlayerMenu {
         List<SkinPreset> presets = SkinLibrary.getAll();
         if (presetIndex < 0 || presetIndex >= presets.size()) return;
 
-        SkinPreset preset = presets.get(presetIndex);
-        applySkin(preset);
+        applySkin(presets.get(presetIndex));
     }
 
     private int indexOfGridSlot(int slot) {
@@ -160,11 +166,10 @@ public class MenuSkinGallery extends PlayerMenu {
     }
 
 
-    private void applySkin(final SkinPreset preset) {
+    private void applySkin(SkinPreset preset) {
         Player target = profile.getPlayer();
-        if (target == null || !target.isOnline()) {
-            return;
-        }
+        if (target == null || !target.isOnline()) return;
+        EnumSound.LEVEL_UP.play(this.player, 1.0F, 2.0F);
 
         SkinData skin = preset.getSkinData();
 
@@ -173,12 +178,8 @@ public class MenuSkinGallery extends PlayerMenu {
         profile.setSkinData(skin);
 
         Main.getInstance().getServer().getScheduler()
-                .runTaskAsynchronously(Main.getInstance(), new Runnable() {
-                    @Override
-                    public void run() {
-                        profile.save(Main.getInstance().getStorage());
-                    }
-                });
+                .runTaskAsynchronously(Main.getInstance(), () ->
+                        profile.save(Main.getInstance().getStorage()));
 
         target.sendMessage("§aSkin §f" + preset.getDisplayName() + " §aaplicada e salva com sucesso!");
 
