@@ -12,9 +12,12 @@ import org.bukkit.event.player.PlayerQuitEvent;
 import org.ltzin.Main;
 import org.ltzin.logger.VLogger;
 import org.ltzin.player.Profile;
+import org.ltzin.player.role.Role;
+import org.ltzin.player.role.RoleLookup;
 import org.ltzin.skin.SkinApplier;
 import org.ltzin.skin.SkinData;
 import org.ltzin.skin.SkinFetcher;
+import org.ltzin.utils.StringUtils;
 
 public class VoidlessListeners implements Listener {
 
@@ -30,21 +33,14 @@ public class VoidlessListeners implements Listener {
 
     @EventHandler(priority = EventPriority.MONITOR)
     public void onAsyncPlayerPreLogin(AsyncPlayerPreLoginEvent evt) {
-        if (evt.getLoginResult() != AsyncPlayerPreLoginEvent.Result.ALLOWED) {
-            return;
-        }
+        if (evt.getLoginResult() != AsyncPlayerPreLoginEvent.Result.ALLOWED) return;
 
         String playerName = evt.getName();
 
         try {
             Profile profile = Profile.load(playerName, Main.getInstance().getStorage());
 
-            if (profile == null) {
-                throw new RuntimeException("Retorno nulo ao carregar perfil de " + playerName);
-            }
-
             LOGGER.info("Perfil carregado: " + playerName);
-
 
             if (profile.hasCustomSkin()) {
                 profile.setPendingSkin(profile.getSkinData());
@@ -63,7 +59,6 @@ public class VoidlessListeners implements Listener {
         } catch (Exception ex) {
             LOGGER.warning("Falha ao carregar perfil de " + playerName + ": " + ex.getMessage());
             ex.printStackTrace();
-
             evt.disallow(
                     AsyncPlayerPreLoginEvent.Result.KICK_OTHER,
                     "§cFalha ao carregar seu perfil. Tente novamente."
@@ -93,27 +88,55 @@ public class VoidlessListeners implements Listener {
         Player  player  = evt.getPlayer();
         Profile profile = Profile.getProfile(player.getName());
 
-        if (profile == null || !profile.hasPendingSkin()) {
+        evt.setJoinMessage(null);
+
+        if (!Role.isReady()) {
+            LOGGER.warning("Ranks não registrados ao processar join de " + player.getName());
             return;
         }
 
-        final SkinData skin = profile.consumePendingSkin();
-        
-        Bukkit.getScheduler().runTaskLater(Main.getInstance(), () -> {
-            if (!player.isOnline()) return;
-            SKIN_APPLIER.apply(player, skin);
-            LOGGER.info("Skin aplicada: " + player.getName());
-        }, 4L);
+
+        if (profile != null) {
+            syncRoleFromPermission(player, profile);
+        }
+
+        if (profile != null && profile.hasPendingSkin()) {
+            final SkinData skin = profile.consumePendingSkin();
+            Bukkit.getScheduler().runTaskLater(Main.getInstance(), () -> {
+                if (!player.isOnline()) return;
+                SKIN_APPLIER.apply(player, skin);
+                LOGGER.info("Skin aplicada: " + player.getName());
+            }, 4L);
+        }
+
+        Role role = RoleLookup.roleForOnlinePlayer(player);
+        if (role == null) return;
+
+
+
+        for (Player online : Bukkit.getOnlinePlayers()) {
+            if (online.equals(player)) continue;
+
+            Role onlineRole = RoleLookup.roleForOnlinePlayer(online);
+            if (onlineRole == null) continue;
+
+            if (onlineRole.isAlwaysVisible()) {
+                player.showPlayer(online);
+            }
+
+            if (role.isAlwaysVisible()) {
+                online.showPlayer(player);
+            }
+        }
     }
 
     @EventHandler(priority = EventPriority.MONITOR)
     public void onPlayerQuit(PlayerQuitEvent evt) {
         String  playerName = evt.getPlayer().getName();
-        Profile profile    = Profile.getProfile(playerName);
 
-        if (profile == null) {
-            return;
-        }
+        Profile profile = Profile.unload(playerName);
+
+        if (profile == null) return;
 
         Main.getInstance().getServer().getScheduler()
                 .runTaskAsynchronously(Main.getInstance(), () -> {
@@ -125,16 +148,23 @@ public class VoidlessListeners implements Listener {
                                 + ": " + ex.getMessage());
                         ex.printStackTrace();
                     } finally {
-                        Profile.unload(playerName);
+                        profile.destroy();
                     }
                 });
     }
 
-    public static SkinFetcher getSkinFetcher() {
-        return SKIN_FETCHER;
+    private void syncRoleFromPermission(Player player, Profile profile) {
+        Role detected     = Role.byPermission(player);
+        String detectedName = StringUtils.stripColors(detected.getName());
+        String savedRole    = profile.getRole();
+
+        if (!detectedName.equalsIgnoreCase(savedRole)) {
+            profile.setRole(detectedName);
+            LOGGER.info("Role sincronizado: " + player.getName()
+                    + " [" + savedRole + " → " + detectedName + "]");
+        }
     }
 
-    public static SkinApplier getSkinApplier() {
-        return SKIN_APPLIER;
-    }
+    public static SkinFetcher getSkinFetcher() { return SKIN_FETCHER; }
+    public static SkinApplier getSkinApplier() { return SKIN_APPLIER; }
 }

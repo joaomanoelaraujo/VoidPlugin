@@ -1,8 +1,8 @@
 storage:
   # Tipos disponíveis: MYSQL, HIKARI, SQLITE
-  # MYSQL  → conexão simples (DriverManager)
-  # HIKARI → connection pool (recomendado para produção)
-  # SQLITE → banco local em arquivo
+  # MYSQL  → conexão simples, sem pool (só para dev/teste)
+  # HIKARI → connection pool com reconexão automática (produção)
+  # SQLITE → banco local em arquivo (só para dev/teste)
   type: HIKARI
 
   mysql:
@@ -13,11 +13,12 @@ storage:
     password: ""
 
   hikari:
-    max-pool-size: 10
-    min-idle: 2
-    connection-timeout: 30000
+    max-pool-size: 20
+    min-idle: 5
+    connection-timeout: 5000
     idle-timeout: 600000
     max-lifetime: 1800000
+    keepalive-time: 60000
 
   sqlite:
     file: database

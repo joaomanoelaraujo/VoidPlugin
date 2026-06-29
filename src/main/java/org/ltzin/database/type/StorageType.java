@@ -7,7 +7,7 @@ import java.util.List;
 public enum StorageType {
 
     MYSQL("MySQL", "mysql"),
-    MARIADB("MariaDB", "mariadb"),
+//    MARIADB("MariaDB", "mariadb"),
     HIKARI("HikariCP", "hikari", "hikaricp"),
     SQLITE("SQLite", "sqlite");
 

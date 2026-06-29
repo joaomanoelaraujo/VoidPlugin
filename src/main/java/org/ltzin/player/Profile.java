@@ -4,6 +4,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.ltzin.database.data.DataContainer;
 import org.ltzin.database.data.DataTable;
+import org.ltzin.database.data.PreferencesContainer;
 import org.ltzin.database.data.interfaces.AbstractContainer;
 import org.ltzin.database.data.interfaces.DataTableInfo;
 import org.ltzin.database.storage.implementation.StorageImplementation;
@@ -13,20 +14,16 @@ import java.sql.*;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
-
 public class Profile {
 
     private static final Map<String, Profile> PROFILES = new ConcurrentHashMap<>();
 
     private String name;
     private Player player;
-
     private Map<String, Map<String, DataContainer>> tableMap;
 
-    /**
-     * Skin buscada durante o AsyncPlayerPreLoginEvent e aplicada no PlayerJoinEvent.
-     * Transitória: descartada após a aplicação para não ocupar memória.
-     */
+    private static final Map<String, List<String>> SET_COLUMNS_CACHE = new ConcurrentHashMap<>();
+
     private volatile SkinData pendingSkin;
 
     private Profile(String name) {
@@ -35,14 +32,17 @@ public class Profile {
     }
 
     public static Profile getProfile(String playerName) {
+        if (playerName == null) return null;
         return PROFILES.get(playerName.toLowerCase());
     }
 
     public static Profile getProfile(Player player) {
+        if (player == null) return null;
         return getProfile(player.getName());
     }
 
     public static boolean isLoaded(String playerName) {
+        if (playerName == null) return false;
         return PROFILES.containsKey(playerName.toLowerCase());
     }
 
@@ -50,36 +50,37 @@ public class Profile {
         return Collections.unmodifiableCollection(PROFILES.values());
     }
 
+
     public static Profile load(String playerName, StorageImplementation storage) throws SQLException {
         String key = playerName.toLowerCase();
 
-        if (PROFILES.containsKey(key)) {
-            return PROFILES.get(key);
-        }
+        Profile existing = PROFILES.get(key);
+        if (existing != null) return existing;
 
         Profile profile = new Profile(playerName);
 
-        for (DataTable table : DataTable.listTables()) {
-            DataTableInfo info = table.getInfo();
-            Map<String, DataContainer> row = profile.loadRow(storage, info, playerName);
-            profile.tableMap.put(info.name(), row);
+        try (Connection conn = storage.getConnection()) {
+            for (DataTable table : DataTable.listTables()) {
+                DataTableInfo info = table.getInfo();
+                Map<String, DataContainer> row = profile.loadRow(conn, table, info, playerName);
+                profile.tableMap.put(info.name(), row);
+            }
         }
 
-        profile.getDataContainer("VoidProfile", "lastlogin").set(System.currentTimeMillis());
+        DataContainer lastLogin = profile.getDataContainer("VoidProfile", "lastlogin");
+        if (lastLogin != null) {
+            lastLogin.set(System.currentTimeMillis());
+        }
 
-        PROFILES.put(key, profile);
-        return profile;
+        Profile winner = PROFILES.putIfAbsent(key, profile);
+        return winner != null ? winner : profile;
     }
 
-    private Map<String, DataContainer> loadRow(StorageImplementation storage,
+    private Map<String, DataContainer> loadRow(Connection conn,
+                                               DataTable table,
                                                DataTableInfo info,
                                                String playerName) throws SQLException {
-
-        DataTable table = findTable(info.name());
-
-        try (Connection conn = storage.getConnection();
-             PreparedStatement ps = conn.prepareStatement(info.select())) {
-
+        try (PreparedStatement ps = conn.prepareStatement(info.select())) {
             ps.setString(1, playerName.toLowerCase());
 
             try (ResultSet rs = ps.executeQuery()) {
@@ -108,21 +109,18 @@ public class Profile {
                             ? table.getDefaultValues()
                             : new LinkedHashMap<>();
 
-                    insertRow(storage, info, playerName, defaults);
+                    insertRow(conn, info, playerName, defaults);
                     return deepCopy(defaults);
                 }
             }
         }
     }
 
-    private void insertRow(StorageImplementation storage,
+    private void insertRow(Connection conn,
                            DataTableInfo info,
                            String playerName,
                            Map<String, DataContainer> defaults) throws SQLException {
-
-        try (Connection conn = storage.getConnection();
-             PreparedStatement ps = conn.prepareStatement(info.insert())) {
-
+        try (PreparedStatement ps = conn.prepareStatement(info.insert())) {
             ps.setString(1, playerName);
             int idx = 2;
             for (DataContainer dc : defaults.values()) {
@@ -132,36 +130,49 @@ public class Profile {
         }
     }
 
+
     public void save(StorageImplementation storage) {
         if (name == null || tableMap == null) return;
 
+        boolean anyDirty = false;
         for (DataTable table : DataTable.listTables()) {
-            DataTableInfo info = table.getInfo();
-            Map<String, DataContainer> row = tableMap.get(info.name());
-            if (row == null) continue;
-
-            boolean anyUpdated = row.values().stream().anyMatch(DataContainer::isUpdated);
-            if (!anyUpdated) continue;
-
-            try (Connection conn = storage.getConnection();
-                 PreparedStatement ps = conn.prepareStatement(info.update())) {
-
-                List<String> setCols = parseSetColumns(info.update());
-                int idx = 1;
-                for (String col : setCols) {
-                    DataContainer dc = row.get(col);
-                    ps.setObject(idx++, dc != null ? dc.get() : null);
-                }
-                ps.setString(idx, name.toLowerCase());
-
-                ps.executeUpdate();
-
-                row.values().forEach(dc -> dc.setUpdated(false));
-
-            } catch (SQLException ex) {
-                DataTable.LOGGER.warning("[VoidlessProfile] Erro ao salvar '" + name + "' em "
-                        + info.name() + ": " + ex.getMessage());
+            Map<String, DataContainer> row = tableMap.get(table.getInfo().name());
+            if (row != null && row.values().stream().anyMatch(DataContainer::isUpdated)) {
+                anyDirty = true;
+                break;
             }
+        }
+        if (!anyDirty) return;
+
+        try (Connection conn = storage.getConnection()) {
+            for (DataTable table : DataTable.listTables()) {
+                DataTableInfo info = table.getInfo();
+                Map<String, DataContainer> row = tableMap.get(info.name());
+                if (row == null) continue;
+
+                boolean anyUpdated = row.values().stream().anyMatch(DataContainer::isUpdated);
+                if (!anyUpdated) continue;
+
+                try (PreparedStatement ps = conn.prepareStatement(info.update())) {
+                    List<String> setCols = getCachedSetColumns(info.update());
+                    int idx = 1;
+                    for (String col : setCols) {
+                        DataContainer dc = row.get(col);
+                        ps.setObject(idx++, dc != null ? dc.get() : null);
+                    }
+                    ps.setString(idx, name.toLowerCase());
+                    ps.executeUpdate();
+
+                    row.values().forEach(dc -> dc.setUpdated(false));
+
+                } catch (SQLException ex) {
+                    DataTable.LOGGER.warning("[VoidlessProfile] Erro ao salvar '" + name + "' em "
+                            + info.name() + ": " + ex.getMessage());
+                }
+            }
+        } catch (SQLException ex) {
+            DataTable.LOGGER.warning("[VoidlessProfile] Erro ao obter conexão para save de '"
+                    + name + "': " + ex.getMessage());
         }
     }
 
@@ -170,11 +181,8 @@ public class Profile {
     }
 
     public static Profile unload(String playerName) {
-        Profile profile = PROFILES.remove(playerName.toLowerCase());
-        if (profile != null) {
-            profile.destroy();
-        }
-        return profile;
+        if (playerName == null) return null;
+        return PROFILES.remove(playerName.toLowerCase());
     }
 
     public void destroy() {
@@ -192,11 +200,9 @@ public class Profile {
         }
     }
 
-
     public void setPendingSkin(SkinData skin) {
         this.pendingSkin = skin;
     }
-
 
     public SkinData consumePendingSkin() {
         SkinData skin    = this.pendingSkin;
@@ -208,9 +214,7 @@ public class Profile {
         return pendingSkin != null;
     }
 
-
     private static final String SKIN_DELIMITER = ";;";
-
 
     public void setSkinData(SkinData skin) {
         DataContainer dc = getDataContainer("VoidProfile", "skin");
@@ -224,7 +228,6 @@ public class Profile {
         String signature = skin.getSignature() != null ? skin.getSignature() : "";
         dc.set(skin.getValue() + SKIN_DELIMITER + signature);
     }
-
 
     public SkinData getSkinData() {
         DataContainer dc = getDataContainer("VoidProfile", "skin");
@@ -248,12 +251,27 @@ public class Profile {
         return raw != null && !raw.isEmpty();
     }
 
-
     public DataContainer getDataContainer(String tableName, String key) {
         if (tableMap == null) return null;
         Map<String, DataContainer> row = tableMap.get(tableName);
         if (row == null) return null;
         return row.get(key);
+    }
+
+    public String getSelectedTag() {
+        DataContainer dc = getDataContainer("VoidProfile", "selected_tag");
+        return dc != null ? dc.getAsString() : "";
+    }
+
+    public void setSelectedTag(String tagId) {
+        DataContainer dc = getDataContainer("VoidProfile", "selected_tag");
+        if (dc != null) dc.set(tagId != null ? tagId : "");
+    }
+
+    public PreferencesContainer getPreferences() {
+        DataContainer dc = getDataContainer("VoidProfile", "preferences");
+        if (dc == null) throw new IllegalStateException("DataContainer 'preferences' não encontrado.");
+        return dc.getContainer(PreferencesContainer.class);
     }
 
     public <T extends AbstractContainer> T getContainer(String tableName, String key, Class<T> containerClass) {
@@ -289,7 +307,6 @@ public class Profile {
             if (dc != null) dc.set(amount);
         }
     }
-
 
     public long getCash() {
         DataContainer dc = getDataContainer("VoidProfile", "cash");
@@ -331,13 +348,13 @@ public class Profile {
         return dc != null ? dc.getAsLong() : 0L;
     }
 
-
     public String getName() {
         return name;
     }
 
     public Player getPlayer() {
-        if (player == null && name != null) {
+        if (player != null && player.isOnline()) return player;
+        if (name != null) {
             player = Bukkit.getPlayerExact(name);
         }
         return player;
@@ -355,12 +372,15 @@ public class Profile {
         return tableMap;
     }
 
-
     private static DataTable findTable(String tableName) {
         for (DataTable t : DataTable.listTables()) {
             if (t.getInfo().name().equalsIgnoreCase(tableName)) return t;
         }
         return null;
+    }
+
+    private static List<String> getCachedSetColumns(String updateSQL) {
+        return SET_COLUMNS_CACHE.computeIfAbsent(updateSQL, Profile::parseSetColumns);
     }
 
     private static List<String> parseSetColumns(String updateSQL) {

@@ -19,13 +19,14 @@ import java.util.Map;
                 + "`preferences` TEXT, "
                 + "`skin` TEXT, "
                 + "`delivery_claims` TEXT, "
+                + "`selected_tag` TEXT, "
                 + "PRIMARY KEY(`name`)"
                 + ") ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE utf8_bin;",
         select = "SELECT * FROM `VoidProfile` WHERE LOWER(`name`) = ?",
-        insert = "INSERT INTO `VoidProfile` VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        insert = "INSERT INTO `VoidProfile` VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
         update = "UPDATE `VoidProfile` SET "
                 + "`cash` = ?, `role` = ?, `created` = ?, `lastlogin` = ?, "
-                + "`preferences` = ?, `skin` = ?, `delivery_claims` = ? "
+                + "`preferences` = ?, `skin` = ?, `delivery_claims` = ?, `selected_tag` = ? "
                 + "WHERE LOWER(`name`) = ?"
 )
 public class VoidlessTable extends DataTable {
@@ -48,6 +49,7 @@ public class VoidlessTable extends DataTable {
         ));
         defaults.put("skin",            new DataContainer(""));
         defaults.put("delivery_claims", new DataContainer(""));
+        defaults.put("selected_tag",    new DataContainer(""));
         return defaults;
     }
 }

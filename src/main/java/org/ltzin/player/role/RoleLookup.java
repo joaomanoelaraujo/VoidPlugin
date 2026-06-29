@@ -1,34 +1,18 @@
 package org.ltzin.player.role;
 
-
 import org.ltzin.database.cache.RoleCache;
 import org.ltzin.database.cache.RoleCacheEntry;
 import org.bukkit.entity.Player;
 import org.ltzin.manager.Manager;
 import org.ltzin.player.Profile;
+import org.ltzin.utils.StringUtils;
 
 import java.util.Optional;
 
-/**
- * Responsável exclusivamente por resolver o {@link Role} de um jogador,
- * seja ele online ou offline.
- *
- * <p><b>Ordem de resolução:</b>
- * <ol>
- *   <li>Jogador online → tag customizada → rank por permissão</li>
- *   <li>Cache offline</li>
- *   <li>Banco de dados</li>
- *   <li>Fallback: rank padrão</li>
- * </ol>
- * </p>
- */
 public final class RoleLookup {
 
     private RoleLookup() {}
 
-    /**
-     * Resultado de um lookup: rank resolvido + nome real do jogador.
-     */
     public static final class Result {
         private final Role   role;
         private final String resolvedName;
@@ -42,35 +26,21 @@ public final class RoleLookup {
         public String getResolvedName() { return resolvedName; }
     }
 
-
-    /**
-     * Resolve o rank de um jogador pelo nome.
-     * Se o jogador estiver online, prioriza tag customizada antes do rank por permissão.
-     * Se estiver offline, consulta cache e depois o banco de dados.
-     */
     public static Result resolve(String playerName) {
-        // Online
         Player online = Manager.getPlayer(playerName);
         if (online != null) {
             return new Result(roleForOnlinePlayer(online), playerName);
         }
-
-        // Cache + DB
         return resolveOffline(playerName);
     }
 
-    /**
-     * Resolve o rank de um jogador online.
-     * Considera a tag customizada do profile antes do rank por permissão.
-     */
     public static Result resolveOnline(Player player) {
         return new Result(roleForOnlinePlayer(player), player.getName());
     }
 
-    /**
-     * Retorna o Role de um jogador online, verificando tag customizada primeiro.
-     */
-    static Role roleForOnlinePlayer(Player player) {
+    public static Role roleForOnlinePlayer(Player player) {
+        if (Role.listRoles().isEmpty()) return Role.getDefault();
+
         Optional<Role> tagRole = RoleTag.getTagRole(player.getName());
         if (tagRole.isPresent()) {
             return tagRole.get();
@@ -78,27 +48,65 @@ public final class RoleLookup {
         return Role.byPermission(player);
     }
 
+    /**
+     * Retorna o {@link Role} correspondente à tag que o jogador escolheu
+     * manualmente (comando /tag), desde que ele ainda tenha permissão para
+     * usá-la. Retorna {@code null} se nenhuma tag estiver selecionada, se a
+     * tag salva não existir mais, ou se a permissão tiver sido removida —
+     * nesses casos o chamador deve usar o rank padrão (por permissão) no lugar.
+     */
+    public static Role getSelectedTagRole(Player player) {
+        if (Role.listRoles().isEmpty()) return null;
+
+        Profile profile = Profile.getProfile(player);
+        if (profile == null) return null;
+
+        String tagId = profile.getSelectedTag();
+        if (tagId == null || tagId.isEmpty()) return null;
+
+        for (Role role : Role.listRoles()) {
+            if (role.hasTag() && StringUtils.stripColors(role.getName()).equalsIgnoreCase(tagId)) {
+                return role.has(player) ? role : null;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Rank usado para QUALQUER exibição visual do jogador (chat, tablist,
+     * nametag acima da cabeça). Se houver uma tag selecionada e ela ainda
+     * for válida (permissão presente), ela é usada por completo — cor,
+     * prefixo e tag — no lugar do rank por permissão. Caso contrário, cai
+     * de volta para o rank normal.
+     *
+     * <p>Isso é só visual: o rank por permissão continua sendo a fonte de
+     * verdade pra qualquer lógica de permissão/funcionalidade (fly, broadcast, etc).</p>
+     */
+    public static Role displayRole(Player player) {
+        Role tagRole = getSelectedTagRole(player);
+        return tagRole != null ? tagRole : roleForOnlinePlayer(player);
+    }
 
     private static Result resolveOffline(String playerName) {
-        // Cache
         Optional<RoleCacheEntry> cached = RoleCache.get(playerName);
         if (cached.isPresent()) {
             RoleCacheEntry entry = cached.get();
             return new Result(Role.byName(entry.getRoleName()), entry.getRealName());
         }
 
-        // Banco de dados
-        String dbResult = Profile.getProfile(playerName).getRole();
-        if (dbResult != null) {
-            String[] parts  = dbResult.split(" : ", 2);
-            String roleName = parts[0];
-            String realName = parts.length > 1 ? parts[1] : playerName;
+        Profile profile = Profile.getProfile(playerName);
+        if (profile != null) {
+            String dbResult = profile.getRole();
+            if (dbResult != null && !dbResult.isEmpty()) {
+                String[] parts  = dbResult.split(" : ", 2);
+                String roleName = parts[0];
+                String realName = parts.length > 1 ? parts[1] : playerName;
 
-            RoleCache.put(playerName, roleName, realName);
-            return new Result(Role.byName(roleName), realName);
+                RoleCache.put(playerName, roleName, realName);
+                return new Result(Role.byName(roleName), realName);
+            }
         }
 
-        // Fallback
         return new Result(Role.getDefault(), playerName);
     }
 }

@@ -26,6 +26,7 @@ public abstract class Commands extends Command {
   public static void setupCommands() {
     new TesteCmd();
     new SkinCmd();
+    new TagCmd();
   }
   
   public abstract void perform(CommandSender sender, String label, String[] args);

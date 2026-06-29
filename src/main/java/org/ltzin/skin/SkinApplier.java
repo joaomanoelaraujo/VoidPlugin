@@ -36,10 +36,6 @@ public class SkinApplier {
         this.logger = logger;
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // API pública
-    // ─────────────────────────────────────────────────────────────────────────
-
     public void apply(final Player player, final SkinData skin) {
         if (!player.isOnline()) return;
 
@@ -68,10 +64,6 @@ public class SkinApplier {
         });
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Outros jogadores
-    // ─────────────────────────────────────────────────────────────────────────
-
     private void refreshForOthers(Player player) throws Exception {
         Object nmsPlayer    = getNmsPlayer(player);
         Object removePacket = buildPlayerInfoPacket(nmsPlayer, false);
@@ -88,10 +80,6 @@ public class SkinApplier {
         sendPacket(player, removePacket);
         sendPacket(player, addPacket);
     }
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // Próprio jogador
-    // ─────────────────────────────────────────────────────────────────────────
 
     private void refreshForSelf(Player player) {
         if (isLegacyBukkit == null) {
@@ -144,7 +132,6 @@ public class SkinApplier {
 
             args[0] = player.getWorld().getEnvironment().getId();
 
-            // Obtém os três objetos NMS necessários
             Object world     = getFieldInHierarchy(nmsPlayer, "world", "level", "serverLevel");
             Object worldData = invokeZeroArg(world, "getWorldData");
 

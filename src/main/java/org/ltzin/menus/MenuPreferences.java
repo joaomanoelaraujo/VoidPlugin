@@ -17,6 +17,8 @@ import org.ltzin.libraries.PlayerMenu;
 import org.ltzin.menus.category.MenuCategory;
 import org.ltzin.player.Profile;
 import org.ltzin.player.enums.*;
+import org.ltzin.player.preferences.PlayerPreference;
+import org.ltzin.player.preferences.PreferencesApplier;
 import org.ltzin.utils.BukkitUtils;
 import org.ltzin.utils.EnumSound;
 
@@ -339,42 +341,38 @@ public class MenuPreferences extends PlayerMenu {
 
         switch (category) {
             case INGAME:
-                if (slot == toggleSlot(0)) { cycleAndReopen("aq", AutoQueue.class,      AutoQueue.NENHUM); }
-                if (slot == toggleSlot(1)) { cycleAndReopen("mr", MapRating.class,      MapRating.TODOS); }
-                if (slot == toggleSlot(2)) { cycleAndReopen("bp", BloodParticles.class, BloodParticles.TODOS); }
-                if (slot == toggleSlot(3)) { cycleAndReopen("ms", MapSelector.class,    MapSelector.TODOS); }
+                if (slot == toggleSlot(0)) { togglePreference(PlayerPreference.AUTO_QUEUE); }
+                if (slot == toggleSlot(1)) { togglePreference(PlayerPreference.MAP_RATING); }
+                if (slot == toggleSlot(2)) { togglePreference(PlayerPreference.BLOOD_PARTICLES); }
+                if (slot == toggleSlot(3)) { togglePreference(PlayerPreference.MAP_SELECTOR); }
                 break;
 
             case CHAT:
-                if (slot == toggleSlot(0)) { cycleAndReopen("mn", Mentions.class,          Mentions.TODOS); }
-                if (slot == toggleSlot(1)) { cycleAndReopen("ch", ChatMessages.class,      ChatMessages.TODOS); }
-                if (slot == toggleSlot(2)) { cycleAndReopen("wf", WordFilter.class,        WordFilter.TODOS); }
-                if (slot == toggleSlot(3)) { cycleAndReopen("lm", LobbyJoinMessages.class, LobbyJoinMessages.TODOS); }
+                if (slot == toggleSlot(0)) { togglePreference(PlayerPreference.MENTIONS); }
+                if (slot == toggleSlot(1)) { togglePreference(PlayerPreference.CHAT_MESSAGES); }
+                if (slot == toggleSlot(2)) { togglePreference(PlayerPreference.WORD_FILTER); }
+                if (slot == toggleSlot(3)) { togglePreference(PlayerPreference.LOBBY_JOIN_MESSAGES); }
                 break;
 
             case SOCIALS:
-                if (slot == toggleSlot(0)) { cycleAndReopen("pm", PrivateMessages.class, PrivateMessages.TODOS); }
+                if (slot == toggleSlot(0)) { togglePreference(PlayerPreference.PRIVATE_MESSAGES); }
                 break;
 
             case LOBBY:
                 if (slot == toggleSlot(0)) {
                     TimeOfDay next = getEnum("td", TimeOfDay.class, TimeOfDay.DIA).next();
-                    setEnumOrdinal("td", next);
+                    profile.getPreferences().set(PlayerPreference.TIME_OF_DAY, next);
+                    savePrefsAsync();
                     this.player.setPlayerTime(next.getTime(), false);
                     reopen(category);
                 }
-                if (slot == toggleSlot(1)) {
-                    PlayerVisibility next = getEnum("pv", PlayerVisibility.class, PlayerVisibility.TODOS).next();
-                    setEnumOrdinal("pv", next);
-                    applyPlayerVisibility(next);
-                    reopen(category);
-                }
-                if (slot == toggleSlot(2)) { cycleAndReopen("fly", FlyOnJoin.class, FlyOnJoin.NENHUM); }
+                if (slot == toggleSlot(1)) { togglePreference(PlayerPreference.PLAYER_VISIBILITY); }
+                if (slot == toggleSlot(2)) { togglePreference(PlayerPreference.FLY_ON_JOIN); }
                 break;
 
             case GUILD:
-                if (slot == toggleSlot(0)) { cycleAndReopen("gc", GuildChat.class,          GuildChat.TODOS); }
-                if (slot == toggleSlot(1)) { cycleAndReopen("gn", GuildNotifications.class, GuildNotifications.TODOS); }
+                if (slot == toggleSlot(0)) { togglePreference(PlayerPreference.GUILD_CHAT); }
+                if (slot == toggleSlot(1)) { togglePreference(PlayerPreference.GUILD_NOTIFICATIONS); }
                 break;
 
             default:
@@ -394,30 +392,30 @@ public class MenuPreferences extends PlayerMenu {
         new MenuPreferences(profile, cat);
     }
 
-    private <T extends Enum<T>> void cycleAndReopen(String key, Class<T> clazz, T defaultVal) {
-        T current = getEnum(key, clazz, defaultVal);
-        try {
-            T next = (T) clazz.getMethod("next").invoke(current);
-            setEnumOrdinal(key, next);
-        } catch (Exception ex) {
-            ex.printStackTrace();
-        }
+
+    private void togglePreference(PlayerPreference preference) {
+        profile.getPreferences().toggle(preference);
+        PreferencesApplier.apply(this.player, preference);
+        savePrefsAsync();
         reopen(category);
     }
 
-    private void applyPlayerVisibility(PlayerVisibility pv) {
-        if (pv == PlayerVisibility.NENHUM) {
-            for (Player online : Bukkit.getOnlinePlayers()) {
-                if (!online.equals(this.player)) this.player.hidePlayer(online);
-            }
-            this.player.sendMessage("§cVocê está escondendo outros jogadores.");
-        } else {
-            for (Player online : Bukkit.getOnlinePlayers()) {
-                if (!online.equals(this.player)) this.player.showPlayer(online);
-            }
-            this.player.sendMessage("§aVocê voltou a ver outros jogadores.");
+    private void savePrefsAsync() {
+        StorageImplementation storage = Main.getInstance().getStorage();
+        if (storage != null) {
+            Bukkit.getScheduler().runTaskAsynchronously(Main.getInstance(), () ->
+                    profile.save(storage)
+            );
         }
     }
+
+
+
+
+
+
+
+
 
 
     @SuppressWarnings("unchecked")
@@ -436,13 +434,7 @@ public class MenuPreferences extends PlayerMenu {
         JSONObject json = getPrefsJson();
         json.put(key, (long) value.ordinal());
         savePrefsJson(json);
-
-        StorageImplementation storage = Main.getInstance().getStorage();
-        if (storage != null) {
-            Bukkit.getScheduler().runTaskAsynchronously(Main.getInstance(), () ->
-                    profile.save(storage)
-            );
-        }
+        savePrefsAsync();
     }
 
 

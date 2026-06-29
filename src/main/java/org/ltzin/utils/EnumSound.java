@@ -195,7 +195,6 @@ public enum EnumSound {
     private final String sound1_8;
     private final String soundModern;
 
-    // Cache por instância — resolve uma vez, reutiliza sempre
     private volatile Sound resolvedSound;
     private volatile boolean resolved = false;
 
@@ -238,7 +237,6 @@ public enum EnumSound {
         }
     }
 
-    // --- Métodos de reprodução (inalterados na assinatura) ---
 
     public void play(Player player, float volume, float pitch) {
         play(player, player.getLocation(), volume, pitch);

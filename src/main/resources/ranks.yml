@@ -1,0 +1,78 @@
+# ranks.yml — unifica roles e tags em um único arquivo.
+# A ordem importa: o primeiro rank com permissão satisfeita é o rank do player.
+# O ÚLTIMO rank deve ser o padrão (permission vazia) — geralmente "membro".
+#
+# Campos:
+#   prefix      — prefixo exibido no chat/tab (suporta &códigos)
+#   tag         — tag exibida antes do nome (ex: [DONO]). Opcional: omita ou deixe vazio
+#                 para usar somente o prefix sem tag adicional.
+#   permission  — permissão LuckPerms que concede este rank (ex: group.dono).
+#                 Deixe vazio apenas no rank padrão.
+#   broadcast   — true = anuncia entrada no servidor
+#   alwaysvisible — true = sempre visível para outros players (ignora /v)
+#   fly         — true = permite voar ao entrar
+
+ranks:
+  dono:
+    prefix: "&4[Dono] "
+    tag: "&4[DONO] "
+    permission: "group.dono"
+    broadcast: true
+    alwaysvisible: true
+    fly: true
+
+  admin:
+    prefix: "&c[Admin] "
+    tag: "&c[ADMIN] "
+    permission: "group.admin"
+    broadcast: true
+    alwaysvisible: true
+    fly: true
+
+  dev:
+    prefix: "&3[Dev] "
+    tag: "&3[DEV] "
+    permission: "group.dev"
+    broadcast: false
+    alwaysvisible: true
+    fly: true
+
+  moderador:
+    prefix: "&c[Mod] "
+    tag: "&c[MOD] "
+    permission: "group.mod"
+    broadcast: false
+    alwaysvisible: false
+    fly: false
+
+  helper:
+    prefix: "&e[Helper] "
+    tag: "&e[HELPER] "
+    permission: "group.helper"
+    broadcast: false
+    alwaysvisible: false
+    fly: false
+
+  youtuber:
+    prefix: "&a[YT] "
+    tag: "&a[YT] "
+    permission: "group.youtuber"
+    broadcast: false
+    alwaysvisible: false
+    fly: false
+
+  streamer:
+    prefix: "&d[Live] "
+    tag: "&d[LIVE] "
+    permission: "group.streamer"
+    broadcast: false
+    alwaysvisible: false
+    fly: false
+
+  membro:
+    prefix: "&7"
+    tag: ""
+    permission: ""
+    broadcast: false
+    alwaysvisible: false
+    fly: false

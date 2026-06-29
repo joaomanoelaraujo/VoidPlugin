@@ -17,8 +17,7 @@ public class StorageFactory {
 
     public StorageImplementation createNewImplementation(StorageType method) {
         switch (method) {
-            case MYSQL:
-            case MARIADB: {
+            case MYSQL: {
                 return new MySQLDatabase(
                         main,
                         main.getConfig().getString("storage.mysql.host", "localhost"),
@@ -40,7 +39,8 @@ public class StorageFactory {
                         main.getConfig().getInt("storage.hikari.min-idle", 2),
                         main.getConfig().getLong("storage.hikari.connection-timeout", 30000),
                         main.getConfig().getLong("storage.hikari.idle-timeout", 600000),
-                        main.getConfig().getLong("storage.hikari.max-lifetime", 1800000)
+                        main.getConfig().getLong("storage.hikari.max-lifetime", 1800000),
+                        main.getConfig().getLong("storage.hikari.keepalive-time", 60000)
                 );
             }
             case SQLITE: {

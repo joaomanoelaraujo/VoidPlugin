@@ -35,7 +35,7 @@ public class MenuProfile extends PlayerMenu {
         this.setItem(10, BukkitUtils.deserializeItemStack("404 : 1 : name>§aPreferências : desc>§7Controle diversas preferências\n§7pessoais da nossa rede.\n\n§eClique para ver!"));
         this.setItem(11, BukkitUtils.deserializeItemStack("PAPER : 1 : name>§aEstatísticas : desc>§7Veja todas as suas estatísticas\n§7de todos os nossos minigames.\n\n§eClique para ver!"));
 
-        this.setItem(13, BukkitUtils.putProfileOnSkull(this.player, BukkitUtils.deserializeItemStack("SKULL_ITEM:3 : 1 : name>§7" + RoleFormatter.withColor(player.getName()) + " : desc>§fGrupo: §7" + RoleLookup.resolveOnline(player.getPlayer()).getRole().getName() + "\n\n§fCadastrado em: §7" + SDF_PT.format(profile.getCreated()) + "\n§fÚltimo login: §7" + SDF_PT.format(profile.getLastLogin()) + "\n\n§fEmail: §7Nenhum")));
+        this.setItem(13, BukkitUtils.putProfileOnSkull(this.player, BukkitUtils.deserializeItemStack("SKULL_ITEM:3 : 1 : name>§7" + RoleFormatter.withColor(player.getName()) + " : desc>§fGrupo: §7" + Role.getRole(profile.getPlayer()) + "\n\n§fCadastrado em: §7" + SDF_PT.format(profile.getCreated()) + "\n§fÚltimo login: §7" + SDF_PT.format(profile.getLastLogin()) + "\n\n§fEmail: §7Nenhum")));
 
         long available = Delivery.listDeliveries().stream()
                 .filter(d -> d.canClaim(profile))

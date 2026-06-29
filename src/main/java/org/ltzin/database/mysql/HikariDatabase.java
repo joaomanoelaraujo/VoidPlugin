@@ -25,11 +25,13 @@ public class HikariDatabase implements StorageImplementation {
     private final long connectionTimeout;
     private final long idleTimeout;
     private final long maxLifetime;
+    private final long keepaliveTime;
 
     public HikariDatabase(Main main, String host, int port, String database,
                           String username, String password,
                           int maxPoolSize, int minIdle,
-                          long connectionTimeout, long idleTimeout, long maxLifetime) {
+                          long connectionTimeout, long idleTimeout, long maxLifetime,
+                          long keepaliveTime) {
         this.main              = main;
         this.host              = host;
         this.port              = port;
@@ -41,6 +43,7 @@ public class HikariDatabase implements StorageImplementation {
         this.connectionTimeout = connectionTimeout;
         this.idleTimeout       = idleTimeout;
         this.maxLifetime       = maxLifetime;
+        this.keepaliveTime     = keepaliveTime;
         this.logger            = new VLogger(main);
     }
 
@@ -49,8 +52,13 @@ public class HikariDatabase implements StorageImplementation {
         logger.info("Inicializando pool HikariCP...");
 
         HikariConfig config = new HikariConfig();
+
+
         config.setJdbcUrl("jdbc:mysql://" + host + ":" + port + "/" + database
-                + "?useSSL=false&autoReconnect=true&characterEncoding=utf8");
+                + "?useSSL=false&allowPublicKeyRetrieval=true"
+                + "&characterEncoding=utf8&useUnicode=true"
+                + "&serverTimezone=UTC");
+
         config.setUsername(username);
         config.setPassword(password);
         config.setDriverClassName("com.mysql.cj.jdbc.Driver");
@@ -61,7 +69,20 @@ public class HikariDatabase implements StorageImplementation {
         config.setConnectionTimeout(connectionTimeout);
         config.setIdleTimeout(idleTimeout);
         config.setMaxLifetime(maxLifetime);
-        config.setConnectionTestQuery("SELECT 1");
+
+        config.setKeepaliveTime(keepaliveTime);
+
+
+        config.addDataSourceProperty("cachePrepStmts",           "true");
+        config.addDataSourceProperty("prepStmtCacheSize",        "250");
+        config.addDataSourceProperty("prepStmtCacheSqlLimit",    "2048");
+        config.addDataSourceProperty("useServerPrepStmts",       "true");
+        config.addDataSourceProperty("rewriteBatchedStatements", "true");
+        config.addDataSourceProperty("cacheResultSetMetadata",   "true");
+        config.addDataSourceProperty("cacheServerConfiguration", "true");
+        config.addDataSourceProperty("elideSetAutoCommits",      "true");
+        config.addDataSourceProperty("maintainTimeStats",        "false");
+        config.addDataSourceProperty("useLocalSessionState",     "true");
 
         this.dataSource = new HikariDataSource(config);
         logger.info("Pool HikariCP iniciado com sucesso! (pool size: " + maxPoolSize + ")");
