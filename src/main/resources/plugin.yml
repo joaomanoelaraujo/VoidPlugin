@@ -3,7 +3,6 @@ main: org.ltzin.Main
 author: Voidless, D4RKK
 version: 1.0.0-SNAPSHOT
 
-softdepend:
-  - Protocolib
+dependencies: [Protocolib, PlaceholderAPI]
 
 description: Um plugin de testes

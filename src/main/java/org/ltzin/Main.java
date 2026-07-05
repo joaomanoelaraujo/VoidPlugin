@@ -1,5 +1,7 @@
 package org.ltzin;
 
+import me.clip.placeholderapi.PlaceholderAPI;
+import org.bukkit.Bukkit;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.ltzin.api.VoidlessAPI;
 import org.ltzin.api.database.StorageAPI;
@@ -15,6 +17,7 @@ import org.ltzin.listeners.PreferencesListener;
 import org.ltzin.listeners.VoidlessListeners;
 import org.ltzin.logger.VLogger;
 import org.ltzin.player.role.RoleRegistry;
+import org.ltzin.plugin.hook.VoidlessExpansion;
 import org.ltzin.tab.TabManager;
 
 public class Main extends JavaPlugin {
@@ -65,6 +68,13 @@ public class Main extends JavaPlugin {
         VoidlessListeners.setup();
         Commands.setupCommands();
         PreferencesListener.setup();
+        if (Bukkit.getPluginManager().getPlugin("PlaceholderAPI") == null) {
+            logger.warning("PlaceholderAPI nao encontrado. Os placeholders \"%voidless_*%\" nao estarao disponiveis.");
+            return;
+        }
+
+        new VoidlessExpansion().register();
+
         logger.info("Plugin iniciado com sucesso!");
     }
 

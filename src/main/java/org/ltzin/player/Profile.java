@@ -8,6 +8,10 @@ import org.ltzin.database.data.PreferencesContainer;
 import org.ltzin.database.data.interfaces.AbstractContainer;
 import org.ltzin.database.data.interfaces.DataTableInfo;
 import org.ltzin.database.storage.implementation.StorageImplementation;
+import org.ltzin.game.Game;
+import org.ltzin.game.GameTeam;
+import org.ltzin.hotbar.Hotbar;
+import org.ltzin.player.scoreboard.Score;
 import org.ltzin.skin.SkinData;
 
 import java.sql.*;
@@ -17,10 +21,12 @@ import java.util.concurrent.ConcurrentHashMap;
 public class Profile {
 
     private static final Map<String, Profile> PROFILES = new ConcurrentHashMap<>();
-
+    private Score scoreboard;
     private String name;
     private Player player;
     private Map<String, Map<String, DataContainer>> tableMap;
+    private Hotbar hotbar;
+    private Game<? extends GameTeam> game;
 
     private static final Map<String, List<String>> SET_COLUMNS_CACHE = new ConcurrentHashMap<>();
 
@@ -189,6 +195,9 @@ public class Profile {
         this.name        = null;
         this.player      = null;
         this.pendingSkin = null;
+        this.hotbar      = null;
+        this.scoreboard = null;
+        this.game = null;
 
         if (this.tableMap != null) {
             this.tableMap.values().forEach(row -> {
@@ -200,6 +209,14 @@ public class Profile {
         }
     }
 
+    @SuppressWarnings("unchecked")
+    public <T extends Game<?>> T getGame(Class<T> gameClass) {
+        return this.game != null && gameClass.isAssignableFrom(this.game.getClass()) ? (T) this.game : null;
+    }
+
+    public boolean playingGame() {
+        return this.game != null;
+    }
     public void setPendingSkin(SkinData skin) {
         this.pendingSkin = skin;
     }
@@ -359,13 +376,48 @@ public class Profile {
         }
         return player;
     }
+    public Score getScoreboard() {
+        return this.scoreboard;
+    }
 
+    public void setScoreboard(Score scoreboard) {
+        if (this.scoreboard != null) {
+            this.scoreboard.destroy();
+        }
+        this.scoreboard = scoreboard;
+    }
+    public void update() {
+        try {
+            if (this.scoreboard != null) {
+                this.scoreboard.update();
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
     public void setPlayer(Player player) {
         this.player = player;
     }
 
     public boolean isOnline() {
         return name != null && PROFILES.containsKey(name.toLowerCase());
+    }
+
+    public Hotbar getHotbar() {
+        return this.hotbar;
+    }
+
+    /**
+     * Define a hotbar do player e aplica na inventory dele imediatamente,
+     * se ele estiver online.
+     */
+    public void setHotbar(Hotbar hotbar) {
+        this.hotbar = hotbar;
+        Player p = this.getPlayer();
+        Profile profile = Profile.getProfile(p.getName());
+        if (hotbar != null && profile != null) {
+            hotbar.apply(profile);
+        }
     }
 
     public Map<String, Map<String, DataContainer>> getTableMap() {

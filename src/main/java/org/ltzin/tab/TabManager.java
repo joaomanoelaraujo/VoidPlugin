@@ -18,62 +18,67 @@ import org.ltzin.utils.StringUtils;
 import java.util.ArrayList;
 import java.util.List;
 
-
 public final class TabManager {
 
     private TabManager() {}
 
-    private static Scoreboard scoreboard;
-
     public static void setup() {
-        scoreboard = Bukkit.getScoreboardManager().getNewScoreboard();
-        rebuildAllTeams();
         Main.getInstance().getServer().getPluginManager()
                 .registerEvents(new TabListener(), Main.getInstance());
     }
 
+    private static Scoreboard scoreboardOf(Player player) {
+        Scoreboard current = player.getScoreboard();
+        if (current == null || current.equals(Bukkit.getScoreboardManager().getMainScoreboard())) {
+            Scoreboard fresh = Bukkit.getScoreboardManager().getNewScoreboard();
+            player.setScoreboard(fresh);
+            return fresh;
+        }
+        return current;
+    }
+
     public static void removeFromTeams(String playerName) {
-        if (scoreboard == null) return;
-        for (Team t : scoreboard.getTeams()) {
-            if (t.getName().startsWith("vp_") && t.hasEntry(playerName)) {
-                t.removeEntry(playerName);
+        for (Player viewer : Bukkit.getOnlinePlayers()) {
+            Scoreboard sb = viewer.getScoreboard();
+            if (sb == null) continue;
+            for (Team t : sb.getTeams()) {
+                if (t.getName().startsWith("vp_") && t.hasEntry(playerName)) {
+                    t.removeEntry(playerName);
+                }
             }
         }
     }
 
-
     public static void rebuildAllTeams() {
-        if (scoreboard == null) return;
-
-        for (Team t : new ArrayList<>(scoreboard.getTeams())) {
-            if (t.getName().startsWith("vp_")) t.unregister();
+        for (Player viewer : Bukkit.getOnlinePlayers()) {
+            Scoreboard sb = viewer.getScoreboard();
+            if (sb == null) continue;
+            for (Team t : new ArrayList<>(sb.getTeams())) {
+                if (t.getName().startsWith("vp_")) t.unregister();
+            }
         }
 
-        for (Role role : Role.listRoles()) {
-            getOrCreateTeam(role);
+        for (Player viewer : Bukkit.getOnlinePlayers()) {
+            applyAllSync(viewer);
         }
     }
 
-
     public static void applyAll(Player target) {
-        if (!Role.isReady() || scoreboard == null) return;
+        if (!Role.isReady()) return;
 
         Role role = RoleLookup.displayRole(target);
 
-        Bukkit.getScheduler().runTask(Main.getInstance(), () -> {
-            applyTeam(target, role);
-            applyScoreboardToAll(target);
-        });
+        Bukkit.getScheduler().runTask(Main.getInstance(), () ->
+                syncPlayerAcrossAllScoreboards(target, role));
 
         Bukkit.getScheduler().runTask(Main.getInstance(), () ->
                 applyDisplayName(target, role));
     }
 
     public static void applyAllSync(Player target) {
-        if (!Role.isReady() || scoreboard == null) return;
+        if (!Role.isReady()) return;
         Role role = RoleLookup.displayRole(target);
-        applyTeam(target, role);
-        applyScoreboardToAll(target);
+        syncPlayerAcrossAllScoreboards(target, role);
         applyDisplayName(target, role);
     }
 
@@ -81,17 +86,31 @@ public final class TabManager {
         applyAllSync(target);
     }
 
-    private static void applyTeam(Player target, Role role) {
-        for (Team t : scoreboard.getTeams()) {
-            if (t.getName().startsWith("vp_") && t.hasEntry(target.getName())) {
-                t.removeEntry(target.getName());
+    private static void syncPlayerAcrossAllScoreboards(Player target, Role targetRole) {
+        Scoreboard targetSb = scoreboardOf(target);
+
+        for (Player other : Bukkit.getOnlinePlayers()) {
+            Role otherRole = other.equals(target) ? targetRole : RoleLookup.displayRole(other);
+            if (otherRole == null) continue;
+            putInTeam(targetSb, other.getName(), otherRole);
+        }
+
+        for (Player viewer : Bukkit.getOnlinePlayers()) {
+            if (viewer.equals(target)) continue;
+            Scoreboard viewerSb = scoreboardOf(viewer);
+            putInTeam(viewerSb, target.getName(), targetRole);
+        }
+    }
+
+    private static void putInTeam(Scoreboard sb, String entryName, Role role) {
+        for (Team t : new ArrayList<>(sb.getTeams())) {
+            if (t.getName().startsWith("vp_") && t.hasEntry(entryName)) {
+                t.removeEntry(entryName);
             }
         }
 
-        Team team = getOrCreateTeam(role);
-        team.addEntry(target.getName());
-
-        target.setScoreboard(scoreboard);
+        Team team = getOrCreateTeam(sb, role);
+        team.addEntry(entryName);
     }
 
     private static java.lang.reflect.Method  METHOD_SET_OPTION   = null;
@@ -99,12 +118,12 @@ public final class TabManager {
     private static Object                    OPTION_STATUS_ALWAYS = null;
     private static boolean                   SET_OPTION_CHECKED  = false;
 
-    private static Team getOrCreateTeam(Role role) {
+    private static Team getOrCreateTeam(Scoreboard sb, Role role) {
         String teamName = teamNameFor(role);
 
-        Team team = scoreboard.getTeam(teamName);
+        Team team = sb.getTeam(teamName);
         if (team == null) {
-            team = scoreboard.registerNewTeam(teamName);
+            team = sb.registerNewTeam(teamName);
         }
 
         String prefix = isLegacy() ? truncate(role.getPrefix(), 16) : role.getPrefix();
@@ -139,19 +158,6 @@ public final class TabManager {
                     "[TabManager] Falha ao setar NAME_TAG_VISIBILITY: " + e.getMessage());
         }
     }
-
-    private static void applyScoreboardToAll(Player joining) {
-        joining.setScoreboard(scoreboard);
-
-
-        for (Player online : Bukkit.getOnlinePlayers()) {
-            if (!online.equals(joining) &&
-                    online.getScoreboard() != scoreboard) {
-                online.setScoreboard(scoreboard);
-            }
-        }
-    }
-
 
     private static void applyDisplayName(Player target, Role role) {
         String displayName = role.getPrefix() + target.getName();

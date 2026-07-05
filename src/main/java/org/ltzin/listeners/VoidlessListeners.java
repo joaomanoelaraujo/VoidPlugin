@@ -1,15 +1,16 @@
 package org.ltzin.listeners;
 
 import org.bukkit.Bukkit;
+import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
-import org.bukkit.event.player.AsyncPlayerPreLoginEvent;
-import org.bukkit.event.player.PlayerJoinEvent;
-import org.bukkit.event.player.PlayerLoginEvent;
-import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.player.*;
+import org.bukkit.inventory.ItemStack;
 import org.ltzin.Main;
+import org.ltzin.hotbar.HotbarButton;
 import org.ltzin.logger.VLogger;
 import org.ltzin.player.Profile;
 import org.ltzin.player.role.Role;
@@ -151,6 +152,49 @@ public class VoidlessListeners implements Listener {
                         profile.destroy();
                     }
                 });
+    }
+
+    @EventHandler
+    public void onPlayerInteract(PlayerInteractEvent evt) {
+        Player player = evt.getPlayer();
+        Profile profile = Profile.getProfile(player.getName());
+
+        if (profile == null || profile.getHotbar() == null) {
+            return;
+        }
+
+        ItemStack item = player.getItemInHand();
+        if (evt.getAction().name().contains("CLICK") && item != null && item.hasItemMeta()) {
+            HotbarButton button = profile.getHotbar().compareButton(profile, item);
+            if (button != null) {
+                evt.setCancelled(true);
+                button.getAction().execute(profile);
+            }
+        }
+    }
+
+    @EventHandler(priority = EventPriority.LOWEST)
+    public void onInventoryClick(InventoryClickEvent evt) {
+        if (!(evt.getWhoClicked() instanceof Player)) {
+            return;
+        }
+
+        Player player = (Player) evt.getWhoClicked();
+        Profile profile = Profile.getProfile(player.getName());
+
+        if (profile == null || profile.getHotbar() == null ||
+                evt.getClickedInventory() == null || !evt.getClickedInventory().equals(player.getInventory())) {
+            return;
+        }
+
+        ItemStack item = evt.getCurrentItem();
+        if (item != null && item.getType() != Material.AIR && item.hasItemMeta()) {
+            HotbarButton button = profile.getHotbar().compareButton(profile, item);
+            if (button != null) {
+                evt.setCancelled(true);
+                button.getAction().execute(profile);
+            }
+        }
     }
 
     private void syncRoleFromPermission(Player player, Profile profile) {
