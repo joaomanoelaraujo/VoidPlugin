@@ -2,6 +2,7 @@ package org.ltzin;
 
 import me.clip.placeholderapi.PlaceholderAPI;
 import org.bukkit.Bukkit;
+import org.bukkit.Location;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.ltzin.api.VoidlessAPI;
 import org.ltzin.api.database.StorageAPI;
@@ -13,9 +14,11 @@ import org.ltzin.database.storage.StorageFactory;
 import org.ltzin.database.storage.implementation.StorageImplementation;
 import org.ltzin.database.type.StorageType;
 import org.ltzin.deliveries.Delivery;
+import org.ltzin.hologram.HologramManager;
 import org.ltzin.listeners.PreferencesListener;
 import org.ltzin.listeners.VoidlessListeners;
 import org.ltzin.logger.VLogger;
+import org.ltzin.npc.NPCManager;
 import org.ltzin.player.role.RoleRegistry;
 import org.ltzin.plugin.hook.VoidlessExpansion;
 import org.ltzin.tab.TabManager;
@@ -27,6 +30,10 @@ public class Main extends JavaPlugin {
     private StorageImplementation storage;
     private DatabaseManager databaseManager;
     private VoidlessAPI api;
+    private HologramManager hologramManager;
+    private NPCManager npcManager;
+    private static Location lobby;
+
 
     @Override
     public void onEnable() {
@@ -34,6 +41,8 @@ public class Main extends JavaPlugin {
         logger = new VLogger(this);
 
         saveDefaultConfig();
+        hologramManager = new HologramManager(this);
+        npcManager = new NPCManager(this);
 
         RoleRegistry.setup();
 
@@ -62,6 +71,11 @@ public class Main extends JavaPlugin {
                 new PlayerDataAPI(storage)
         );
 
+        hologramManager.load();
+        hologramManager.spawnAll();
+        npcManager.load();
+        npcManager.spawnAllToEveryone();
+
         Delivery.setupDeliveries();
         TabManager.setup();
         VoidlessAPI.init(api);
@@ -83,10 +97,26 @@ public class Main extends JavaPlugin {
         if (storage != null) {
             storage.shutdown();
         }
+        if (hologramManager != null) {
+            hologramManager.removeAllEntities();
+        }
+        if (npcManager != null) {
+            npcManager.removeAll();
+        }
+
         logger.info("Plugin finalizado com sucesso!");
         plugin = null;
     }
 
+    public static Location getLobby() {
+        return lobby;
+    }
+    public HologramManager getHologramManager() {
+        return hologramManager;
+    }
+    public NPCManager getNpcManager() {
+        return npcManager;
+    }
     public StorageImplementation getStorage()      { return storage; }
     public DatabaseManager getDatabaseManager()    { return databaseManager; }
     public VoidlessAPI getAPI()                    { return api; }

@@ -5,16 +5,17 @@ import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.SimpleCommandMap;
 import org.ltzin.Main;
+import org.ltzin.hologram.HologramManager;
+import org.ltzin.npc.NPCManager;
 
 import java.util.Arrays;
 import java.util.logging.Level;
 
 public abstract class Commands extends Command {
-  
-  public Commands(String name, String... aliases) {
+
+    public Commands(String name, String... aliases) {
     super(name);
     this.setAliases(Arrays.asList(aliases));
-    
     try {
       SimpleCommandMap simpleCommandMap = (SimpleCommandMap) Bukkit.getServer().getClass().getDeclaredMethod("getCommandMap").invoke(Bukkit.getServer());
       simpleCommandMap.register(this.getName(), "VoidlessPlugins", this);
@@ -22,11 +23,16 @@ public abstract class Commands extends Command {
       Main.getInstance().getLogger().log(Level.SEVERE, "Cannot register command: ", ex);
     }
   }
-  
+
   public static void setupCommands() {
+      HologramManager holo = new HologramManager(Main.getInstance());
+      NPCManager npc = new NPCManager(Main.getInstance());
+
     new TesteCmd();
     new SkinCmd();
     new TagCmd();
+    new HoloCommand(holo);
+    new NPCCommand(Main.getInstance(), npc);
   }
   
   public abstract void perform(CommandSender sender, String label, String[] args);

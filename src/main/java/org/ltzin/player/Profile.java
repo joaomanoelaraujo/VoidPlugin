@@ -1,7 +1,11 @@
 package org.ltzin.player;
 
+import me.clip.placeholderapi.PlaceholderAPI;
 import org.bukkit.Bukkit;
+import org.bukkit.GameMode;
 import org.bukkit.entity.Player;
+import org.bukkit.potion.PotionEffect;
+import org.ltzin.Main;
 import org.ltzin.database.data.DataContainer;
 import org.ltzin.database.data.DataTable;
 import org.ltzin.database.data.PreferencesContainer;
@@ -11,8 +15,11 @@ import org.ltzin.database.storage.implementation.StorageImplementation;
 import org.ltzin.game.Game;
 import org.ltzin.game.GameTeam;
 import org.ltzin.hotbar.Hotbar;
+import org.ltzin.player.role.Role;
 import org.ltzin.player.scoreboard.Score;
 import org.ltzin.skin.SkinData;
+import org.ltzin.utils.BukkitUtils;
+import org.ltzin.utils.StringUtils;
 
 import java.sql.*;
 import java.util.*;
@@ -186,9 +193,79 @@ public class Profile {
         save(storage);
     }
 
+    public void refresh() {
+        Player player = this.getPlayer();
+        if (player == null) {
+            return;
+        }
+
+        // Reset básico
+        player.setMaxHealth(20.0);
+        player.setHealth(20.0);
+        player.setFoodLevel(20);
+        player.setExhaustion(0.0f);
+        player.setExp(0.0f);
+        player.setLevel(0);
+        player.closeInventory();
+
+        // Remover efeitos
+        for (PotionEffect pe : player.getActivePotionEffects()) {
+            player.removePotionEffect(pe.getType());
+        }
+
+        if (!playingGame()) {
+            player.setGameMode(GameMode.ADVENTURE);
+            Role playerRole = Role.byName(Role.getRole(player));
+            org.bukkit.Location spawnLocation = Main.getLobby().clone();
+
+            if (playerRole.canFly()) {
+                spawnLocation.add(0, 6, 0);
+            }
+
+            player.teleport(spawnLocation);
+            player.setAllowFlight(false);
+            player.setFlying(false);
+
+            // Delay para ativar fly se tiver permissão
+            Bukkit.getScheduler().runTaskLater(Main.getInstance(), () -> {
+                if (player.isOnline() && playerRole.canFly()) {
+                    player.setAllowFlight(true);
+                    player.setFlying(true);
+                }
+            }, 1L);
+
+            this.getDataContainer("VoidProfile", "role").set(StringUtils.stripColors(Role.getRole(player)));
+        } else {
+            player.setAllowFlight(false);
+            player.setFlying(false);
+            player.setGameMode(GameMode.SURVIVAL);
+        }
+
+        if (this.hotbar != null) {
+            this.hotbar.apply(this);
+        }
+
+        this.refreshPlayers();
+    }
+
     public static Profile unload(String playerName) {
         if (playerName == null) return null;
         return PROFILES.remove(playerName.toLowerCase());
+    }
+    public void refreshPlayers() {
+        Player player = this.getPlayer();
+        if (player == null) {
+            return;
+        }
+
+        if (this.hotbar != null) {
+            this.hotbar.getButtons().stream()
+                    .filter(button -> button.getAction().getValue().equalsIgnoreCase("jogadores"))
+                    .forEach(button -> player.getInventory().setItem(
+                            button.getSlot(),
+                            BukkitUtils.deserializeItemStack(PlaceholderAPI.setPlaceholders(player, button.getIcon()))
+                    ));
+        }
     }
 
     public void destroy() {
@@ -213,6 +290,14 @@ public class Profile {
     public <T extends Game<?>> T getGame(Class<T> gameClass) {
         return this.game != null && gameClass.isAssignableFrom(this.game.getClass()) ? (T) this.game : null;
     }
+    public Game<?> getGame() {
+        return this.getGame(Game.class);
+    }
+
+    public void setGame(Game<? extends GameTeam> game) {
+        this.game = game;
+    }
+
 
     public boolean playingGame() {
         return this.game != null;

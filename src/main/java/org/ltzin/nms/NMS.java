@@ -9,28 +9,14 @@ import com.comphenix.protocol.wrappers.WrappedChatComponent;
 import org.bukkit.entity.Player;
 import org.ltzin.Main;
 
-/**
- * Envio de title/subtitle e header/footer do tablist, compativel de
- * Spigot/PaperSpigot 1.8.8 ate as versoes mais recentes.
- *
- * Title/subtitle usa ProtocolLib (o pacote TITLE e normalizado pela lib
- * entre as versoes de NMS). Header/footer usa a API nativa do Spigot
- * (Player#setPlayerListHeaderFooter), disponivel desde a 1.8, sem precisar
- * de pacote manual.
- */
+
 public final class NMS {
 
   private NMS() {}
 
   private static final ProtocolManager PROTOCOL = ProtocolLibrary.getProtocolManager();
 
-  /**
-   * Envia um titulo/subtitulo para o player.
-   * fadeIn/stay/fadeOut sao em ticks (20 ticks = 1 segundo).
-   *
-   * Ex: NMS.sendTitle(player, "", "", 0, 1, 0) -> limpa/reseta o titulo
-   * atual do player quase instantaneamente (1 tick de exibicao).
-   */
+
   public static void sendTitle(Player player, String title, String subtitle, int fadeIn, int stay, int fadeOut) {
     sendTimes(player, fadeIn, stay, fadeOut);
     sendAction(player, EnumWrappers.TitleAction.SUBTITLE, subtitle);
@@ -64,12 +50,6 @@ public final class NMS {
             "[NMS] Falha ao enviar TITLE (" + stage + ") para " + player.getName() + ": " + e.getMessage());
   }
 
-  /**
-   * Envia header/footer do tablist via ProtocolLib (pacote
-   * PLAYER_LIST_HEADER_FOOTER), compativel desde a 1.8 - a API nativa do
-   * Spigot (Player#setPlayerListHeaderFooter) so foi adicionada bem depois
-   * da 1.8.8, entao nao da pra compilar contra ela aqui.
-   */
   public static void sendTabHeaderFooter(Player player, String header, String footer) {
     try {
       PacketContainer packet = PROTOCOL.createPacket(PacketType.Play.Server.PLAYER_LIST_HEADER_FOOTER);
