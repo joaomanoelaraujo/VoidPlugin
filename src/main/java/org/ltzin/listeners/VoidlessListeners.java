@@ -18,7 +18,9 @@ import org.ltzin.player.role.RoleLookup;
 import org.ltzin.skin.SkinApplier;
 import org.ltzin.skin.SkinData;
 import org.ltzin.skin.SkinFetcher;
+import org.ltzin.skin.SkinLibrary;
 import org.ltzin.utils.StringUtils;
+import org.ltzin.utils.VisibilityUtils;
 
 public class VoidlessListeners implements Listener {
 
@@ -37,6 +39,7 @@ public class VoidlessListeners implements Listener {
         if (evt.getLoginResult() != AsyncPlayerPreLoginEvent.Result.ALLOWED) return;
 
         String playerName = evt.getName();
+        boolean isPremium = evt.getUniqueId().version() == 4;
 
         try {
             Profile profile = Profile.load(playerName, Main.getInstance().getStorage());
@@ -46,15 +49,18 @@ public class VoidlessListeners implements Listener {
             if (profile.hasCustomSkin()) {
                 profile.setPendingSkin(profile.getSkinData());
                 LOGGER.info("Skin customizada restaurada para: " + playerName);
-            } else {
+            } else if (isPremium) {
                 SkinData mojangSkin = SKIN_FETCHER.fetch(playerName);
                 if (mojangSkin != null) {
                     profile.setPendingSkin(mojangSkin);
                     LOGGER.info("Skin Mojang obtida para: " + playerName);
                 } else {
-                    LOGGER.info("Sem skin para: " + playerName
-                            + " (sem conta premium e sem skin customizada)");
+                    profile.setPendingSkin(SkinLibrary.getDefaultSkin());
+                    LOGGER.info("Conta premium sem skin encontrada: aplicando skin padrão para: " + playerName);
                 }
+            } else {
+                profile.setPendingSkin(SkinLibrary.getDefaultSkin());
+                LOGGER.info("Conta não original: aplicando skin padrão para: " + playerName);
             }
 
         } catch (Exception ex) {
@@ -66,6 +72,7 @@ public class VoidlessListeners implements Listener {
             );
         }
     }
+
 
     @EventHandler(priority = EventPriority.MONITOR)
     public void onPlayerLogin(PlayerLoginEvent evt) {
@@ -96,7 +103,6 @@ public class VoidlessListeners implements Listener {
             return;
         }
 
-
         if (profile != null) {
             syncRoleFromPermission(player, profile);
         }
@@ -110,24 +116,10 @@ public class VoidlessListeners implements Listener {
             }, 4L);
         }
 
-        Role role = RoleLookup.roleForOnlinePlayer(player);
-        if (role == null) return;
-
-
-        for (Player online : Bukkit.getOnlinePlayers()) {
-            if (online.equals(player)) continue;
-
-            Role onlineRole = RoleLookup.roleForOnlinePlayer(online);
-            if (onlineRole == null) continue;
-
-            if (onlineRole.isAlwaysVisible()) {
-                player.showPlayer(online);
-            }
-
-            if (role.isAlwaysVisible()) {
-                online.showPlayer(player);
-            }
-        }
+        Bukkit.getScheduler().runTaskLater(Main.getInstance(), () -> {
+            if (!player.isOnline()) return;
+            VisibilityUtils.updateVisibility(player);
+        }, 1L);
     }
 
     @EventHandler(priority = EventPriority.MONITOR)

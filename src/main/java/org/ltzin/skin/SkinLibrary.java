@@ -8,6 +8,11 @@ import java.util.List;
 public final class SkinLibrary {
 
     private static final List<SkinPreset> PRESETS = new ArrayList<>();
+    private static final SkinData DEFAULT_SKIN = new SkinData(
+            "ewogICJ0aW1lc3RhbXAiIDogMTYxMjk4OTgyNDIxMSwKICAicHJvZmlsZUlkIiA6ICIyM2YxYTU5ZjQ2OWI0M2RkYmRiNTM3YmZlYzEwNDcxZiIsCiAgInByb2ZpbGVOYW1lIiA6ICIyODA3IiwKICAic2lnbmF0dXJlUmVxdWlyZWQiIDogdHJ1ZSwKICAidGV4dHVyZXMiIDogewogICAgIlNLSU4iIDogewogICAgICAidXJsIiA6ICJodHRwOi8vdGV4dHVyZXMubWluZWNyYWZ0Lm5ldC90ZXh0dXJlL2ZiOTAzMjBjN2FlOGFmNjE0ZTFmNmRiM2Y5MDdmNDBmNjdlNjY4MGUxZWI4N2U5MDNlYmI5YjI2Zjk0YzljMjQiCiAgICB9CiAgfQp9",
+            "di1mpsmeR18HR/CtRI2UmsWg60Nw7yr2QV8PDoa4e1CvHkM7doKNIA36tPmRO0/dgW/ew4h8t392WKEYdtAJrTtV89M7E1gMIsP8enQaYGNBpdkOEt/NFBITzQ4rsQB6VS5Btb6Ck1HUs4nG9NNY8aGBwLeArMxhi6wL4jPGfCzFXM6usOfY6tRFOe5POjL3pmMGgiT6G8xbk3aUGzV6WOgymlkLrdvlmrH+8Rc5KL6koyrXLJrQBiT6BT9VR1KkpSMy1w69i2tPbtuqjMfQZgDb9j51Qtw2QUtDM/VuvkmBj9+BZ6kT0sVlyfIruvVRC/aTZmEHZOGTYCShryjAo9QBtZjNVADBi8KyNxcjO1IR2TU7YbBlFfpNFPKCNGwtsnj0aN+IQXSPHPub5lxRqHMJzLdNOWVKHZ3pldVHtgY4erDqDsaU0OvgQohdjvRItCeC2cYu43TqVegPiNcKawHv2bq/G9wYkQsi5x6/gTAqhYzYKbuEqnh+WMUssFY8qTv7NnpirrmwD7s5Faz+EKD0S2MaBSmJPjQrSmK6RkaT6tIQBiJj3s+HZLVzP2aoi1bOKQczqq7Bp2ebzmLwBYTrqyBHdX/EUUrf8bFh+CPImGh2UFYpLgX20kcTgPN/ijqh2HY3cLuiiMMzR6fsvupN7NxvxVamfw2cWwMLBRo="
+    );
+
 
     static {
         register("goku",     "§7Goku",     "ewogICJ0aW1lc3RhbXAiIDogMTYyMDY5MDY3OTc5OCwKICAicHJvZmlsZUlkIiA6ICIwNWQ0NTNiZWE0N2Y0MThiOWI2ZDUzODg0MWQxMDY2MCIsCiAgInByb2ZpbGVOYW1lIiA6ICJFY2hvcnJhIiwKICAic2lnbmF0dXJlUmVxdWlyZWQiIDogdHJ1ZSwKICAidGV4dHVyZXMiIDogewogICAgIlNLSU4iIDogewogICAgICAidXJsIiA6ICJodHRwOi8vdGV4dHVyZXMubWluZWNyYWZ0Lm5ldC90ZXh0dXJlLzE4NDgxMTI1NTZhYzVjZmZhMTM4ZGNjOTgyMWFjYmI5NTZiN2Y3YTU5ZTNjYmExZGY2NGQ3MDlmNTU4ODkwYTAiCiAgICB9CiAgfQp9", "u9y181TIlNSbJoN8+8S7V7/IEtspBmjElEEc2gvEycb6wixHJDHJB51gmOiRaWgOvnNUh/hcQ9qDB+/oBfp+jRof1A7HYPZvQNZyOxZuMmVFLJGD4pwAeJgW21DXbzGBFTEIJL5WBmchjIdKhZ5lXUBlYaqLUaPbSH12UN5tPS9IpGReXRcDPF0CwsuTkwU3agUrPPOb1++0MI4FBdNp54ynK5Ld8gOzZHWCV+1LTWD1YRH6bsvnUZdAuXh2822iNEvNu55kG50vUEEFMxSBeAAo0gyFwcNhWVtCcisR1cL9yjWJJbgSIr+I0kOCtO7tr2m5No+jsv53r/xB8KwcCLTh9SUjOYIzvcqkkkX9wKUR1iouFOUrD52qlYk3aQYzq7e+4aADvSJa/Fpb9OITW6/WN2vTIUtnYUDAi8D+dV9GPMs/ed1cpbEriXI9dlE6bdOccYuOtgODCOvhIc613VI5xLhj3HzHlaJyWu+2Jr6tlzNFwZ3loZF4An6OZAujRq4JAVhLhRy+2QnQZeNxcSkBE7gtAspuTzsRyg50S+yfACeLFn+Gg4cSp8J1isyrb0bqQ2J8S8w6J6DZsKw3EykyB4Ruk0hTOQxRvEFAAKTsKvbb++fvnpdi/LDST8BC5eycdMWDGmJ+9ZwX8HoydAfVs/h0fTvSk1UruYKCdbA=");
@@ -37,6 +42,7 @@ public final class SkinLibrary {
 
     private SkinLibrary() {}
 
+
     public static void register(String id, String displayName, String value, String signature) {
         PRESETS.add(new SkinPreset(id, displayName, value, signature));
     }
@@ -54,6 +60,10 @@ public final class SkinLibrary {
         return null;
     }
 
+
+    public static SkinData getDefaultSkin() {
+        return DEFAULT_SKIN;
+    }
     public static int size() {
         return PRESETS.size();
     }

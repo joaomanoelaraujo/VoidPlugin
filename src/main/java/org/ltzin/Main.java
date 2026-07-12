@@ -23,6 +23,9 @@ import org.ltzin.player.role.RoleRegistry;
 import org.ltzin.plugin.hook.VoidlessExpansion;
 import org.ltzin.tab.TabManager;
 
+import java.util.Arrays;
+import java.util.List;
+
 public class Main extends JavaPlugin {
 
     private static Main plugin;
@@ -33,6 +36,8 @@ public class Main extends JavaPlugin {
     private HologramManager hologramManager;
     private NPCManager npcManager;
     private static Location lobby;
+    public static final List<String> minigames = Arrays.asList("Sky Wars");
+    public static String minigame = "";
 
 
     @Override

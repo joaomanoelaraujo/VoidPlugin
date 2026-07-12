@@ -2,8 +2,8 @@ package org.ltzin.database.data;
 
 import org.ltzin.database.data.interfaces.DataTableInfo;
 import org.ltzin.database.storage.implementation.StorageImplementation;
+import org.ltzin.database.tables.SkyWarsTable;
 import org.ltzin.database.tables.VoidlessTable;
-import org.ltzin.logger.VLogger;
 
 import java.sql.*;
 import java.util.*;
@@ -18,6 +18,7 @@ public abstract class DataTable {
     private static final List<DataTable> TABLES = new ArrayList<>();
 
     static {
+        TABLES.add(new SkyWarsTable());
         TABLES.add(new VoidlessTable());
     }
 

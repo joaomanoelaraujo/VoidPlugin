@@ -2,6 +2,7 @@ package org.ltzin.database.data;
 
 import org.json.simple.JSONObject;
 import org.ltzin.database.data.interfaces.AbstractContainer;
+import org.ltzin.player.enums.PlayerVisibility;
 import org.ltzin.player.preferences.PlayerPreference;
 
 
@@ -70,6 +71,9 @@ public class PreferencesContainer extends AbstractContainer {
         return json.toJSONString();
     }
 
+    public PlayerVisibility getPlayerVisibility() {
+        return get(PlayerPreference.PLAYER_VISIBILITY);
+    }
 
     @Override
     public void gc() {

@@ -13,65 +13,72 @@
 #   fly         — true = permite voar ao entrar
 
 ranks:
-  dono:
-    prefix: "&4[Dono] "
-    tag: "&4[DONO] "
-    permission: "group.dono"
+  master:
+    prefix: "&6[Master] "
+    tag: "&6Master "
+    permission: "group.master"
     broadcast: true
     alwaysvisible: true
     fly: true
-
   admin:
     prefix: "&c[Admin] "
-    tag: "&c[ADMIN] "
+    tag: "&cAdmin "
     permission: "group.admin"
     broadcast: true
     alwaysvisible: true
     fly: true
-
-  dev:
-    prefix: "&3[Dev] "
-    tag: "&3[DEV] "
-    permission: "group.dev"
-    broadcast: false
+  moderador:
+    prefix: "&2[Moderador] "
+    tag: "&2Moderador "
+    permission: "group.mod"
+    broadcast: true
     alwaysvisible: true
     fly: true
-
-  moderador:
-    prefix: "&c[Mod] "
-    tag: "&c[MOD] "
-    permission: "group.mod"
-    broadcast: false
-    alwaysvisible: false
-    fly: false
-
   helper:
-    prefix: "&e[Helper] "
-    tag: "&e[HELPER] "
+    prefix: "&e[Ajudante] "
+    tag: "&eAjudante "
     permission: "group.helper"
-    broadcast: false
-    alwaysvisible: false
-    fly: false
-
+    broadcast: true
+    alwaysvisible: true
+    fly: true
   youtuber:
-    prefix: "&a[YT] "
-    tag: "&a[YT] "
+    prefix: "&c[YouTuber] "
+    tag: "&cYouTuber "
     permission: "group.youtuber"
-    broadcast: false
+    broadcast: true
+    alwaysvisible: true
+    fly: true
+  supremo:
+    prefix: "&4[Supremo] "
+    tag: "&4Supremo "
+    permission: "rank.lendario"
+    broadcast: true
     alwaysvisible: false
-    fly: false
-
-  streamer:
-    prefix: "&d[Live] "
-    tag: "&d[LIVE] "
-    permission: "group.streamer"
-    broadcast: false
+    fly: true
+  lendario:
+    prefix: "&2[Lendário] "
+    tag: "&2Lendário "
+    permission: "rank.lendario"
+    broadcast: true
     alwaysvisible: false
-    fly: false
-
+    fly: true
+  heroi:
+    prefix: "&5[Herói] "
+    tag: "&5[Herói] "
+    permission: "rank.heroi"
+    broadcast: true
+    alwaysvisible: false
+    fly: true
+  campeao:
+    prefix: "&3[Campeão] "
+    tag: "&3Campeão "
+    permission: "rank.campeao"
+    broadcast: true
+    alwaysvisible: false
+    fly: true
   membro:
     prefix: "&7"
-    tag: ""
+    tag: "§7Membro "
     permission: ""
     broadcast: false
     alwaysvisible: false

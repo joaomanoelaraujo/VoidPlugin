@@ -1,5 +1,7 @@
 package org.ltzin.hotbar;
 
+import me.clip.placeholderapi.PlaceholderAPI;
+import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.ltzin.player.Profile;
 import org.ltzin.utils.BukkitUtils;
@@ -43,28 +45,29 @@ public class Hotbar {
   }
 
   public void apply(Profile profile) {
-    profile.getPlayer().getInventory().clear();
-    profile.getPlayer().getInventory().setArmorContents(null);
+    Player player = profile.getPlayer();
+    player.getInventory().clear();
+    player.getInventory().setArmorContents(null);
 
     for (HotbarButton button : this.buttons) {
       if (button.getSlot() < 0 || button.getSlot() > 8) {
         continue;
       }
 
-      String template = button.getIcon();
-      boolean ownSkin = template.contains("%player_head%");
+      String template = button.getIcon().replace("%player%", player.getName());
+      boolean ownSkin = template.contains("%perfil%");
 
-      String raw = template.replace("%player_head%", "").replace("%player%", profile.getPlayer().getName());
+      String raw = PlaceholderAPI.setPlaceholders(player, template.replace("%perfil%", ""));
       ItemStack icon = BukkitUtils.deserializeItemStack(raw);
 
       if (ownSkin) {
-        icon = BukkitUtils.putProfileOnSkull(profile.getPlayer(), icon);
+        icon = BukkitUtils.putProfileOnSkull(player, icon);
       }
 
-      profile.getPlayer().getInventory().setItem(button.getSlot(), icon);
+      player.getInventory().setItem(button.getSlot(), icon);
     }
 
-    profile.getPlayer().updateInventory();
+    player.updateInventory();
   }
 
   public HotbarButton getButtonBySlot(int slot) {

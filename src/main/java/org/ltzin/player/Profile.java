@@ -42,6 +42,10 @@ public class Profile {
 
     private volatile SkinData pendingSkin;
 
+    private volatile StorageImplementation storage;
+    private final Object saveLock = new Object();
+    private volatile boolean saveScheduled = false;
+
     private Profile(String name) {
         this.name     = name;
         this.tableMap = new HashMap<>();
@@ -74,6 +78,7 @@ public class Profile {
         if (existing != null) return existing;
 
         Profile profile = new Profile(playerName);
+        profile.storage = storage;
 
         try (Connection conn = storage.getConnection()) {
             for (DataTable table : DataTable.listTables()) {
@@ -196,6 +201,25 @@ public class Profile {
         save(storage);
     }
 
+
+    public void requestSave() {
+        StorageImplementation storage = this.storage;
+        if (storage == null) return;
+
+        synchronized (saveLock) {
+            if (saveScheduled) return;
+            saveScheduled = true;
+        }
+
+        Bukkit.getScheduler().runTaskAsynchronously(Main.getInstance(), () -> {
+            try {
+                save(storage);
+            } finally {
+                saveScheduled = false;
+            }
+        });
+    }
+
     public void refresh() {
         Player player = this.getPlayer();
         if (player == null) {
@@ -301,6 +325,7 @@ public class Profile {
         this.hotbar      = null;
         this.scoreboard = null;
         this.game = null;
+        this.storage = null;
         if (this.lastHit != null) {
             this.lastHit.clear();
             this.lastHit = null;
@@ -427,6 +452,7 @@ public class Profile {
             DataContainer dc = getDataContainer(tableName, key);
             if (dc != null) dc.addLong(amount);
         }
+        requestSave();
     }
 
     public void addStats(String tableName, String... keys) {
@@ -438,6 +464,7 @@ public class Profile {
             DataContainer dc = getDataContainer(tableName, key);
             if (dc != null) dc.set(amount);
         }
+        requestSave();
     }
 
     public long getCash() {
@@ -448,16 +475,19 @@ public class Profile {
     public void setCash(long value) {
         DataContainer dc = getDataContainer("VoidProfile", "cash");
         if (dc != null) dc.set(value);
+        requestSave();
     }
 
     public void addCash(long amount) {
         DataContainer dc = getDataContainer("VoidProfile", "cash");
         if (dc != null) dc.addLong(amount);
+        requestSave();
     }
 
     public void removeCash(long amount) {
         DataContainer dc = getDataContainer("VoidProfile", "cash");
         if (dc != null) dc.removeLong(amount);
+        requestSave();
     }
 
     public String getRole() {
@@ -468,6 +498,7 @@ public class Profile {
     public void setRole(String role) {
         DataContainer dc = getDataContainer("VoidProfile", "role");
         if (dc != null) dc.set(role);
+        requestSave();
     }
 
     public long getCreated() {
@@ -484,6 +515,49 @@ public class Profile {
         return name;
     }
 
+    public void addCoins(String table, double amount) {
+        if (Main.minigame.equals("Sky Wars")) {
+            this.getDataContainer(table, "coins").addDouble(amount);
+            requestSave();
+            return;
+        }
+
+        double currentCoins = this.getCoins(table);
+        double newTotal = currentCoins + amount;
+
+        this.getDataContainer(table, "coins").addDouble(amount);
+        requestSave();
+    }
+
+    public int addCoinsWM(String table, double amount) {
+        amount = this.calculateWM(amount);
+        this.addCoins(table, amount);
+        return (int) amount;
+    }
+
+    public double getCoins(String table) {
+        return this.getDataContainer(table, "coins").getAsDouble();
+    }
+
+    public double calculateWM(double amount) {
+        double add = 0.0D;
+//        String booster = this.getBoostersContainer().getEnabled();
+//        if (booster != null) {
+//            add = amount * Double.parseDouble(booster.split(":")[0]);
+//        }
+//
+//        NetworkBooster nb = Booster.getNetworkBooster(Core.minigame);
+//        if (nb != null) {
+//            add += amount * nb.getMultiplier();
+//        }
+
+        return (amount > 0.0 && add == 0.0) ? amount : add;
+    }
+
+    public void removeCoins(String table, double amount) {
+        this.getDataContainer(table, "coins").removeDouble(amount);
+        requestSave();
+    }
     public Player getPlayer() {
         if (player != null && player.isOnline()) return player;
         if (name != null) {
@@ -529,10 +603,6 @@ public class Profile {
         return this.hotbar;
     }
 
-    /**
-     * Define a hotbar do player e aplica na inventory dele imediatamente,
-     * se ele estiver online.
-     */
     public void setHotbar(Hotbar hotbar) {
         this.hotbar = hotbar;
         Player p = this.getPlayer();

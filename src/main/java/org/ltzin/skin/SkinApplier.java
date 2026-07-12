@@ -5,6 +5,7 @@ import com.mojang.authlib.properties.Property;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.ltzin.Main;
+import org.ltzin.utils.VisibilityUtils;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
@@ -13,16 +14,7 @@ import java.util.Collections;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-/**
- * SkinApplier — compatível com 1.8 até 1.21+, sem ProtocolLib.
- *
- * Para o PRÓPRIO jogador no 1.8:
- *   PacketPlayOutRespawn(int dimension, EnumDifficulty, WorldType, EnumGamemode)
- *   → os parâmetros são resolvidos pelo TIPO, não pela posição assumida.
- *
- * Para 1.12+:
- *   hidePlayer(Plugin, self) + showPlayer(Plugin, self)
- */
+
 public class SkinApplier {
 
     private final Logger logger;
@@ -61,6 +53,10 @@ public class SkinApplier {
                 logger.log(Level.WARNING, "[SkinApplier] Erro ao atualizar outros para " + player.getName(), e);
             }
             refreshForSelf(player);
+
+            if (player.isOnline()) {
+                VisibilityUtils.updateVisibility(player);
+            }
         });
     }
 
@@ -385,7 +381,6 @@ public class SkinApplier {
         return null;
     }
 
-    /** Busca o primeiro campo cujo tipo é assignable ao tipo esperado. */
     private Object getFieldOfType(Object obj, Class<?> expectedType) {
         if (obj == null) return null;
         Class<?> clazz = obj.getClass();

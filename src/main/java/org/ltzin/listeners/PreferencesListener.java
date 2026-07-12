@@ -97,9 +97,9 @@ public class PreferencesListener implements Listener {
 
         Role joiningRole = RoleLookup.roleForOnlinePlayer(joiningPlayer);
         if (joiningRole == null || !joiningRole.isBroadcast()) return;
+        Role role = RoleLookup.displayRole(joiningPlayer);
 
-        String tag     = Role.getTag(joiningPlayer);
-        String message = tag + " §fentrou no servidor!";
+        String message = role.getPrefix() + joiningPlayer.getName() + " §fentrou no servidor!";
 
         for (Player online : Bukkit.getOnlinePlayers()) {
             Profile onlineProfile = Profile.getProfile(online.getName());
