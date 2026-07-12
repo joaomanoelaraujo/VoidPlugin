@@ -53,9 +53,15 @@ public class PreferencesListener implements Listener {
 
         Set<Player> mentioned = findMentioned(originalMessage);
 
+        // Respeita o que listeners de prioridade mais alta ja decidiram (ex: o
+        // vSkyWars, que restringe os destinatarios pra quem esta na mesma
+        // sala/mundo). Se nenhum outro listener mexeu nisso, o padrao do Bukkit
+        // ja e "todo mundo online", entao o comportamento fora de partida
+        // continua igual.
+        Set<Player> candidates = new HashSet<>(evt.getRecipients());
         evt.getRecipients().clear();
 
-        for (Player online : Bukkit.getOnlinePlayers()) {
+        for (Player online : candidates) {
             if (online.equals(sender)) continue;
 
             Profile profile = Profile.getProfile(online.getName());
@@ -97,7 +103,10 @@ public class PreferencesListener implements Listener {
 
         for (Player online : Bukkit.getOnlinePlayers()) {
             Profile onlineProfile = Profile.getProfile(online.getName());
+
             if (onlineProfile == null) continue;
+
+            if (onlineProfile.playingGame()) continue;
 
             if (onlineProfile.getPreferences().get(PlayerPreference.LOBBY_JOIN_MESSAGES) == LobbyJoinMessages.TODOS) {
                 online.sendMessage(message);
@@ -114,7 +123,7 @@ public class PreferencesListener implements Listener {
             String nick = online.getName().toLowerCase();
             if (lower.contains("@" + nick)
                     || Pattern.compile("(?<![a-zA-Z0-9_@])" + Pattern.quote(nick) + "(?![a-zA-Z0-9_])")
-                              .matcher(lower).find()) {
+                    .matcher(lower).find()) {
                 result.add(online);
             }
         }

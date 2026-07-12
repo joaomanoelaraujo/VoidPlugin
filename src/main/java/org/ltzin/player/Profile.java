@@ -3,6 +3,7 @@ package org.ltzin.player;
 import me.clip.placeholderapi.PlaceholderAPI;
 import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
+import org.bukkit.Location;
 import org.bukkit.entity.Player;
 import org.bukkit.potion.PotionEffect;
 import org.ltzin.Main;
@@ -24,6 +25,7 @@ import org.ltzin.utils.StringUtils;
 import java.sql.*;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 public class Profile {
 
@@ -34,6 +36,7 @@ public class Profile {
     private Map<String, Map<String, DataContainer>> tableMap;
     private Hotbar hotbar;
     private Game<? extends GameTeam> game;
+    private Map<String, Long> lastHit = new HashMap<>();
 
     private static final Map<String, List<String>> SET_COLUMNS_CACHE = new ConcurrentHashMap<>();
 
@@ -216,13 +219,14 @@ public class Profile {
         if (!playingGame()) {
             player.setGameMode(GameMode.ADVENTURE);
             Role playerRole = Role.byName(Role.getRole(player));
-            org.bukkit.Location spawnLocation = Main.getLobby().clone();
 
+            Location spawnLocation = Main.getLobby().clone();
             if (playerRole.canFly()) {
-                spawnLocation.add(0, 6, 0);
+                spawnLocation.add(0.0F, 6.0F, 0.0F);
             }
 
             player.teleport(spawnLocation);
+
             player.setAllowFlight(false);
             player.setFlying(false);
 
@@ -247,6 +251,28 @@ public class Profile {
 
         this.refreshPlayers();
     }
+
+    public void setHit(String name) {
+        this.lastHit.put(name, System.currentTimeMillis() + 8000L);
+    }
+
+    public List<Profile> getLastHitters() {
+        long now = System.currentTimeMillis();
+
+        List<Profile> hitters = lastHit.entrySet().stream()
+                .filter(entry -> entry.getValue() > now)
+                .map(entry -> getProfile(entry.getKey()))
+                .filter(Objects::nonNull)
+                .filter(Profile::isOnline)
+                .sorted(Comparator.comparing(
+                        profile -> lastHit.get(profile.getName()),
+                        Comparator.reverseOrder())).collect(Collectors.toList());
+
+        lastHit.clear();
+
+        return hitters;
+    }
+
 
     public static Profile unload(String playerName) {
         if (playerName == null) return null;
@@ -275,7 +301,10 @@ public class Profile {
         this.hotbar      = null;
         this.scoreboard = null;
         this.game = null;
-
+        if (this.lastHit != null) {
+            this.lastHit.clear();
+            this.lastHit = null;
+        }
         if (this.tableMap != null) {
             this.tableMap.values().forEach(row -> {
                 row.values().forEach(DataContainer::gc);
@@ -296,6 +325,7 @@ public class Profile {
 
     public void setGame(Game<? extends GameTeam> game) {
         this.game = game;
+        this.lastHit.clear();
     }
 
 
@@ -469,8 +499,15 @@ public class Profile {
         if (this.scoreboard != null) {
             this.scoreboard.destroy();
         }
+
         this.scoreboard = scoreboard;
+
+        Player player = this.getPlayer();
+        if (player != null && scoreboard != null) {
+            player.setScoreboard(scoreboard.getScoreboard());
+        }
     }
+
     public void update() {
         try {
             if (this.scoreboard != null) {
@@ -485,7 +522,7 @@ public class Profile {
     }
 
     public boolean isOnline() {
-        return name != null && PROFILES.containsKey(name.toLowerCase());
+        return name != null && PROFILES.containsKey(name);
     }
 
     public Hotbar getHotbar() {
@@ -499,7 +536,7 @@ public class Profile {
     public void setHotbar(Hotbar hotbar) {
         this.hotbar = hotbar;
         Player p = this.getPlayer();
-        Profile profile = Profile.getProfile(p.getName());
+        Profile profile = getProfile(p.getName());
         if (hotbar != null && profile != null) {
             hotbar.apply(profile);
         }

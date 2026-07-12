@@ -55,6 +55,14 @@ public final class Role {
         return ROLES.get(ROLES.size() - 1);
     }
 
+    public static String getColored(Player player) {
+        if (!isReady()) return "§7" + player.getName();
+
+        Role role = RoleLookup.roleForOnlinePlayer(player);
+        if (role == null) return "§7" + player.getName();
+
+        return StringUtils.getLastColor(role.getPrefix()) + player.getName();
+    }
 
     public static String getTag(Player player) {
         if (!isReady()) return player.getName();

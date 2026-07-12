@@ -108,6 +108,10 @@ public class Main extends JavaPlugin {
         plugin = null;
     }
 
+    public static void setLobby(Location location) {
+        lobby = location;
+    }
+
     public static Location getLobby() {
         return lobby;
     }

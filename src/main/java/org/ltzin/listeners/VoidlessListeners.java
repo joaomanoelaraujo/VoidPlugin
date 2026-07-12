@@ -114,7 +114,6 @@ public class VoidlessListeners implements Listener {
         if (role == null) return;
 
 
-
         for (Player online : Bukkit.getOnlinePlayers()) {
             if (online.equals(player)) continue;
 

@@ -11,12 +11,14 @@ import org.bukkit.entity.Player;
 import org.bukkit.scoreboard.Scoreboard;
 import org.bukkit.scoreboard.Team;
 import org.ltzin.Main;
+import org.ltzin.player.Profile;
 import org.ltzin.player.role.Role;
 import org.ltzin.player.role.RoleLookup;
 import org.ltzin.utils.StringUtils;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 public final class TabManager {
 
@@ -90,6 +92,8 @@ public final class TabManager {
         Scoreboard targetSb = scoreboardOf(target);
 
         for (Player other : Bukkit.getOnlinePlayers()) {
+            if (!other.equals(target) && !sameRoom(target, other)) continue;
+
             Role otherRole = other.equals(target) ? targetRole : RoleLookup.displayRole(other);
             if (otherRole == null) continue;
             putInTeam(targetSb, other.getName(), otherRole);
@@ -97,9 +101,26 @@ public final class TabManager {
 
         for (Player viewer : Bukkit.getOnlinePlayers()) {
             if (viewer.equals(target)) continue;
+            if (!sameRoom(target, viewer)) continue;
+
             Scoreboard viewerSb = scoreboardOf(viewer);
             putInTeam(viewerSb, target.getName(), targetRole);
         }
+    }
+
+    /**
+     * Dois jogadores só devem compartilhar o time/tag global de rank se estiverem
+     * na mesma "room": ambos fora de partida (lobby) ou dentro da mesma partida.
+     * Sem isso, o tab list e as tags de rank vazam entre lobby e arenas diferentes.
+     */
+    private static boolean sameRoom(Player a, Player b) {
+        Profile profileA = Profile.getProfile(a.getName());
+        Profile profileB = Profile.getProfile(b.getName());
+
+        Object gameA = profileA != null && profileA.playingGame() ? profileA.getGame() : null;
+        Object gameB = profileB != null && profileB.playingGame() ? profileB.getGame() : null;
+
+        return Objects.equals(gameA, gameB);
     }
 
     private static void putInTeam(Scoreboard sb, String entryName, Role role) {
