@@ -4,10 +4,7 @@ import org.ltzin.manager.Manager;
 import org.ltzin.utils.StringUtils;
 import org.bukkit.entity.Player;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 
 public final class Role {
 
@@ -41,7 +38,20 @@ public final class Role {
                 .filter(r -> r.getPermission().equals(permission))
                 .findFirst();
     }
+    public static Role getRoleByPermission(String permission) {
+        Iterator<Role> var1 = ROLES.iterator();
 
+        Role role;
+        do {
+            if (!var1.hasNext()) {
+                return null;
+            }
+
+            role = var1.next();
+        } while (!role.getPermission().equals(permission));
+
+        return role;
+    }
     public static Role byPermission(Player player) {
         return ROLES.stream()
                 .filter(r -> r.has(player))

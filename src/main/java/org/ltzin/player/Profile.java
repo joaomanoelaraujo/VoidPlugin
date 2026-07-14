@@ -7,6 +7,7 @@ import org.bukkit.Location;
 import org.bukkit.entity.Player;
 import org.bukkit.potion.PotionEffect;
 import org.ltzin.Main;
+import org.ltzin.database.DatabaseManager;
 import org.ltzin.database.data.DataContainer;
 import org.ltzin.database.data.DataTable;
 import org.ltzin.database.data.PreferencesContainer;
@@ -151,7 +152,6 @@ public class Profile {
         }
     }
 
-
     public void save(StorageImplementation storage) {
         if (name == null || tableMap == null) return;
 
@@ -201,23 +201,38 @@ public class Profile {
         save(storage);
     }
 
+    /**
+     * Overload de conveniência: usa a StorageImplementation interna do Profile
+     * (a mesma setada em load()). É o que o PlayerQuitListener deveria estar
+     * chamando — sem isso o save no quit não compila/não roda com a storage certa,
+     * e as alterações feitas em memória (ex: cosmeticos comprados) nunca chegam
+     * a ser persistidas no banco antes do profile ser destruído.
+     */
+    public void saveSync() {
+        StorageImplementation storage = this.storage;
+        if (storage == null) {
+            DataTable.LOGGER.warning("[VoidlessProfile] saveSync() chamado sem storage disponível para '" + name + "'. O save foi ignorado.");
+            return;
+        }
+        save(storage);
+    }
+
 
     public void requestSave() {
         StorageImplementation storage = this.storage;
-        if (storage == null) return;
-
-        synchronized (saveLock) {
-            if (saveScheduled) return;
-            saveScheduled = true;
-        }
-
-        Bukkit.getScheduler().runTaskAsynchronously(Main.getInstance(), () -> {
-            try {
-                save(storage);
-            } finally {
-                saveScheduled = false;
+        if (storage != null) {
+            synchronized(this.saveLock) {
+                if (this.saveScheduled) return;
+                this.saveScheduled = true;
             }
-        });
+            Bukkit.getScheduler().runTaskAsynchronously(Main.getInstance(), () -> {
+                try {
+                    this.save(storage);
+                } finally {
+                    this.saveScheduled = false;
+                }
+            });
+        }
     }
 
     public void refresh() {

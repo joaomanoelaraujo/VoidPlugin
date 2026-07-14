@@ -62,6 +62,18 @@ public class VoidlessExpansion extends PlaceholderExpansion {
       return profile.getSelectedTag();
     } else if (params.equals("online")) {
       return format(Bukkit.getOnlinePlayers().size());
+    } else if (params.startsWith("Duels_")) {
+      String table = "vPluginDuels";
+      String value = params.replace("Duels_", "");
+      if (value.equals("kills") || value.equals("deaths") || value.equals("assists") || value.equals("games") || value.equals("wins")) {
+        return StringUtils.formatNumber(profile.getStats(table, "sumo" + value, "soup" + value));
+      } else if (value.equals("sumokills") || value.equals("sumodeaths") || value.equals("sumoassists") || value.equals("sumogames") || value.equals("sumowins")) {
+        return StringUtils.formatNumber(profile.getStats(table, value));
+      } else if (value.equals("soupkills") || value.equals("soupdeaths") || value.equals("soupassists") || value.equals("soupgames") || value.equals("soupwins")) {
+        return StringUtils.formatNumber(profile.getStats(table, value));
+      } else if (value.equals("coins")) {
+        return StringUtils.formatNumber(profile.getCoins(table));
+      }
     } else if (params.startsWith("SkyWars_")) {
       String table = "vPluginSkyWars";
       String value = params.replace("SkyWars_", "");

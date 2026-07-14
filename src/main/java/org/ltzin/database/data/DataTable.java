@@ -2,6 +2,7 @@ package org.ltzin.database.data;
 
 import org.ltzin.database.data.interfaces.DataTableInfo;
 import org.ltzin.database.storage.implementation.StorageImplementation;
+import org.ltzin.database.tables.DuelsTable;
 import org.ltzin.database.tables.SkyWarsTable;
 import org.ltzin.database.tables.VoidlessTable;
 
@@ -19,6 +20,7 @@ public abstract class DataTable {
 
     static {
         TABLES.add(new SkyWarsTable());
+        TABLES.add(new DuelsTable());
         TABLES.add(new VoidlessTable());
     }
 

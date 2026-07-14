@@ -32,6 +32,7 @@ public abstract class Commands extends Command {
     new SkinCmd();
     new TagCmd();
     new HoloCommand(holo);
+    new VReloadCmd();
     new NPCCommand(Main.getInstance(), npc);
   }
   
