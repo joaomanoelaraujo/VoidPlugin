@@ -3,6 +3,7 @@ package org.ltzin.npc;
 import com.comphenix.protocol.PacketType;
 import com.comphenix.protocol.ProtocolLibrary;
 import com.comphenix.protocol.ProtocolManager;
+import com.comphenix.protocol.events.InternalStructure;
 import com.comphenix.protocol.events.PacketContainer;
 import com.comphenix.protocol.wrappers.*;
 import org.bukkit.Bukkit;
@@ -11,6 +12,9 @@ import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.Listener;
+import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.ltzin.utils.VersionUtil;
@@ -19,7 +23,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.*;
 
-public class NPCManager {
+public class NPCManager implements Listener {
 
     private final JavaPlugin plugin;
     private final ProtocolManager protocolManager;
@@ -30,6 +34,19 @@ public class NPCManager {
         this.plugin = plugin;
         this.protocolManager = ProtocolLibrary.getProtocolManager();
         this.file = new File(plugin.getDataFolder(), "npcs.yml");
+
+        Bukkit.getPluginManager().registerEvents(this, plugin);
+    }
+
+    @EventHandler
+    public void onJoin(PlayerJoinEvent event) {
+        Player player = event.getPlayer();
+
+        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            if (player.isOnline()) {
+                spawnAllFor(player);
+            }
+        }, 5L);
     }
 
     public void save() {
@@ -96,9 +113,11 @@ public class NPCManager {
     public NPC create(String id, Location location) {
         NPC npc = new NPC(id, location);
         npcs.put(id.toLowerCase(), npc);
-        for (Player p : Bukkit.getOnlinePlayers()) {
-            spawnFor(npc, p);
-        }
+        Bukkit.getScheduler().runTask(plugin, () -> {
+            for (Player p : Bukkit.getOnlinePlayers()) {
+                spawnFor(npc, p);
+            }
+        });
         return npc;
     }
 
@@ -149,10 +168,18 @@ public class NPCManager {
         }
     }
 
+    private static String toProfileName(String rawId) {
+        if (rawId.length() > 16) {
+            return rawId.substring(0, 16);
+        }
+        return rawId;
+    }
+
     @SuppressWarnings("deprecation")
     public void spawnFor(NPC npc, Player player) {
         try {
-            WrappedGameProfile profile = new WrappedGameProfile(npc.getUuid(), npc.getId());
+            String profileName = toProfileName(npc.getId());
+            WrappedGameProfile profile = new WrappedGameProfile(npc.getUuid(), profileName);
             if (npc.hasSkin()) {
                 profile.getProperties().put("textures",
                         new WrappedSignedProperty("textures", npc.getSkinValue(), npc.getSkinSignature()));
@@ -192,13 +219,17 @@ public class NPCManager {
                     spawn.getDoubles().write(2, loc.getZ());
                     spawn.getBytes().write(0, (byte) (loc.getPitch() * 256 / 360));
                     spawn.getBytes().write(1, (byte) (loc.getYaw() * 256 / 360));
-                    spawn.getBytes().write(2, (byte) (loc.getYaw() * 256 / 360)); // head yaw
+                    spawn.getBytes().write(2, (byte) (loc.getYaw() * 256 / 360));
                     protocolManager.sendServerPacket(player, spawn);
                 } catch (Exception modernSpawnError) {
                     plugin.getLogger().warning("Falha no spawn moderno (1.20.2+) do NPC '" + npc.getId()
                             + "': " + modernSpawnError.getMessage() + " — verifique os índices do SPAWN_ENTITY para sua versão de ProtocolLib.");
                 }
             }
+
+            sendHeadRotation(player, npc);
+
+            hideNameTag(player, npc, profileName);
 
             new BukkitRunnable() {
                 @Override
@@ -211,6 +242,88 @@ public class NPCManager {
 
         } catch (Exception e) {
             plugin.getLogger().warning("Falha ao spawnar NPC '" + npc.getId() + "' para " + player.getName() + ": " + e.getMessage());
+        }
+    }
+
+    private void sendHeadRotation(Player player, NPC npc) {
+        try {
+            PacketContainer headRotation = protocolManager.createPacket(PacketType.Play.Server.ENTITY_HEAD_ROTATION);
+            headRotation.getIntegers().write(0, npc.getEntityId());
+            headRotation.getBytes().write(0, (byte) (npc.getLocation().getYaw() * 256 / 360));
+            protocolManager.sendServerPacket(player, headRotation);
+        } catch (Exception e) {
+            plugin.getLogger().warning("Falha ao rotacionar a cabeça do NPC '" + npc.getId() + "': " + e.getMessage());
+        }
+    }
+
+    private boolean isModernTeamLayout(PacketContainer team) {
+        return team.getOptionalStructures().size() > 0;
+    }
+
+    @SuppressWarnings("deprecation")
+    private void hideNameTag(Player player, NPC npc, String profileName) {
+        try {
+            String teamName = "npc" + npc.getEntityId();
+            if (teamName.length() > 16) teamName = teamName.substring(0, 16);
+
+            PacketContainer team = protocolManager.createPacket(PacketType.Play.Server.SCOREBOARD_TEAM);
+            boolean modern = isModernTeamLayout(team);
+
+            team.getStrings().write(0, teamName);
+
+            if (modern) {
+                team.getIntegers().write(0, 0);
+
+                Optional<InternalStructure> optStruct = team.getOptionalStructures().read(0);
+                if (optStruct.isPresent()) {
+                    InternalStructure struct = optStruct.get();
+                    try {
+                        struct.getChatComponents().write(0, WrappedChatComponent.fromText(teamName));
+                    } catch (Exception ignoredDisplayName) {
+                    }
+                    try {
+                        struct.getStrings().write(0, "never"); // nametagVisibility = NEVER
+                    } catch (Exception ignoredVisibility) {
+                    }
+                    team.getOptionalStructures().write(0, Optional.of(struct));
+                } else {
+                    plugin.getLogger().warning("SCOREBOARD_TEAM sem InternalStructure opcional presente — nametag do NPC '"
+                            + npc.getId() + "' pode não ser escondido nessa versão do servidor.");
+                }
+            } else {
+                team.getStrings()
+                        .write(1, teamName)
+                        .write(2, "")
+                        .write(3, "")
+                        .write(4, "never");
+                team.getIntegers().write(1, 0);
+            }
+
+            team.getSpecificModifier(Collection.class).write(0, Collections.singletonList(profileName));
+
+            protocolManager.sendServerPacket(player, team);
+        } catch (Exception e) {
+            plugin.getLogger().warning("Não foi possível esconder o nametag do NPC '" + npc.getId()
+                    + "': " + e.getMessage() + " — confira a API de SCOREBOARD_TEAM da sua versão do ProtocolLib.");
+        }
+    }
+
+    private void removeNameTagTeam(Player player, NPC npc) {
+        try {
+            String teamName = "npc" + npc.getEntityId();
+            if (teamName.length() > 16) teamName = teamName.substring(0, 16);
+
+            PacketContainer team = protocolManager.createPacket(PacketType.Play.Server.SCOREBOARD_TEAM);
+            team.getStrings().write(0, teamName);
+
+            if (isModernTeamLayout(team)) {
+                team.getIntegers().write(0, 1);
+            } else {
+                team.getIntegers().write(1, 1);
+            }
+
+            protocolManager.sendServerPacket(player, team);
+        } catch (Exception ignored) {
         }
     }
 
@@ -228,6 +341,7 @@ public class NPCManager {
             }
             protocolManager.sendServerPacket(player, destroy);
             sendPlayerInfoRemove(player, npc.getUuid());
+            removeNameTagTeam(player, npc);
         } catch (Exception e) {
             plugin.getLogger().warning("Falha ao remover NPC '" + npc.getId() + "' para " + player.getName() + ": " + e.getMessage());
         }
