@@ -259,7 +259,14 @@ public class Profile {
             player.setGameMode(GameMode.ADVENTURE);
             Role playerRole = Role.byName(Role.getRole(player));
 
-            Location spawnLocation = Main.getLobby().clone();
+            Location lobby = Main.getLobby();
+            if (lobby == null) {
+                DataTable.LOGGER.warning("[VoidlessProfile] Main.getLobby() retornou null ao dar refresh() em '"
+                        + name + "'. O lobby não foi configurado (ou ainda não foi carregado nesse ponto) — "
+                        + "usando o spawn do mundo como fallback pra não crashar o join. Configure/verifique a "
+                        + "localização do lobby (config.yml / comando de setlobby).");
+            }
+            Location spawnLocation = (lobby != null ? lobby : player.getWorld().getSpawnLocation()).clone();
             if (playerRole.canFly()) {
                 spawnLocation.add(0.0F, 6.0F, 0.0F);
             }

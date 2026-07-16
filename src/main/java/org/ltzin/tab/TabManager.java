@@ -4,6 +4,7 @@ import com.comphenix.protocol.PacketType;
 import com.comphenix.protocol.ProtocolLibrary;
 import com.comphenix.protocol.ProtocolManager;
 import com.comphenix.protocol.events.PacketContainer;
+import com.comphenix.protocol.wrappers.WrappedDataValue;
 import com.comphenix.protocol.wrappers.WrappedDataWatcher;
 import com.comphenix.protocol.wrappers.WrappedWatchableObject;
 import org.bukkit.Bukkit;
@@ -210,7 +211,30 @@ public final class TabManager {
                 metadata.add(new WrappedWatchableObject(3, (byte) 1));
                 packet.getWatchableCollectionModifier().write(0, metadata);
 
+            } else if (isPost119()) {
+                // 1.19+: o pacote ENTITY_METADATA guarda os valores como
+                // SynchedEntityData$DataValue, não mais DataWatcher$Item.
+                // Montar isso via WrappedDataWatcher + getWatchableCollectionModifier()
+                // (API antiga) grava o tipo errado nesse campo e o servidor quebra
+                // ao codificar o pacote pro cliente com
+                // "DataItem cannot be cast to DataValue" — foi exatamente isso
+                // que estava derrubando quem entrava no servidor.
+                com.comphenix.protocol.wrappers.WrappedChatComponent comp =
+                        com.comphenix.protocol.wrappers.WrappedChatComponent.fromText(displayName);
+
+                List<WrappedDataValue> values = new ArrayList<>();
+                values.add(new WrappedDataValue(2,
+                        WrappedDataWatcher.Registry.getChatComponentSerializer(true),
+                        java.util.Optional.of(comp.getHandle())));
+                values.add(new WrappedDataValue(3,
+                        WrappedDataWatcher.Registry.get(Boolean.class),
+                        true));
+
+                packet.getDataValueCollectionModifier().write(0, values);
+
             } else if (isModern()) {
+                // 1.13 – 1.18.x: formato antigo do DataWatcher ainda é válido aqui,
+                // getWatchableCollectionModifier() funciona normalmente.
                 WrappedDataWatcher watcher = new WrappedDataWatcher();
 
                 WrappedDataWatcher.Serializer chatSer =
@@ -270,6 +294,10 @@ public final class TabManager {
 
     private static boolean isLegacy() {
         return minorVersion() <= 8;
+    }
+
+    private static boolean isPost119() {
+        return minorVersion() >= 19;
     }
 
     private static boolean isModern() {

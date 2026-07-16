@@ -3,7 +3,6 @@ package org.ltzin.npc;
 import com.comphenix.protocol.PacketType;
 import com.comphenix.protocol.ProtocolLibrary;
 import com.comphenix.protocol.ProtocolManager;
-import com.comphenix.protocol.events.InternalStructure;
 import com.comphenix.protocol.events.PacketContainer;
 import com.comphenix.protocol.wrappers.*;
 import org.bukkit.Bukkit;
@@ -17,13 +16,70 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
+import org.bukkit.scoreboard.NameTagVisibility;
+import org.bukkit.scoreboard.Scoreboard;
+import org.bukkit.scoreboard.Team;
 import org.ltzin.utils.VersionUtil;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.Constructor;
 import java.util.*;
 
 public class NPCManager implements Listener {
+
+    private static final Class<?> PLAYER_INFO_PACKET_CLASS;
+    private static final Class<?> PLAYER_INFO_ENTRY_CLASS;
+    private static final Class<?> PLAYER_INFO_ACTION_CLASS;
+    private static final Constructor<?> PLAYER_INFO_ENTRY_CTOR;
+    private static final Constructor<?> PLAYER_INFO_PACKET_CTOR;
+    private static final boolean PLAYER_INFO_PACKET_CTOR_TAKES_COLLECTION;
+
+    static {
+        Class<?> packetClass = null, entryClass = null, actionClass = null;
+        Constructor<?> entryCtor = null, packetCtor = null;
+        boolean ctorTakesCollection = false;
+
+        try {
+            packetClass = Class.forName("net.minecraft.network.protocol.game.ClientboundPlayerInfoUpdatePacket");
+            entryClass  = Class.forName("net.minecraft.network.protocol.game.ClientboundPlayerInfoUpdatePacket$Entry");
+            actionClass = Class.forName("net.minecraft.network.protocol.game.ClientboundPlayerInfoUpdatePacket$Action");
+
+            Constructor<?>[] entryCtors = entryClass.getDeclaredConstructors();
+            if (entryCtors.length > 0) {
+                entryCtor = entryCtors[0]; // record só tem o construtor canônico
+                entryCtor.setAccessible(true);
+            }
+
+            for (Constructor<?> c : packetClass.getDeclaredConstructors()) {
+                Class<?>[] params = c.getParameterTypes();
+                if (params.length == 2 && EnumSet.class.isAssignableFrom(params[0])) {
+                    if (entryClass.isAssignableFrom(params[1])) {
+                        packetCtor = c;
+                        ctorTakesCollection = false;
+                        c.setAccessible(true);
+                        break;
+                    }
+                    if (Collection.class.isAssignableFrom(params[1]) && packetCtor == null) {
+                        packetCtor = c;
+                        ctorTakesCollection = true;
+                        c.setAccessible(true);
+                    }
+                }
+            }
+        } catch (Throwable ignored) {
+
+            packetClass = null; entryClass = null; actionClass = null;
+            entryCtor = null; packetCtor = null;
+        }
+
+        PLAYER_INFO_PACKET_CLASS = packetClass;
+        PLAYER_INFO_ENTRY_CLASS  = entryClass;
+        PLAYER_INFO_ACTION_CLASS = actionClass;
+        PLAYER_INFO_ENTRY_CTOR   = entryCtor;
+        PLAYER_INFO_PACKET_CTOR  = packetCtor;
+        PLAYER_INFO_PACKET_CTOR_TAKES_COLLECTION = ctorTakesCollection;
+    }
 
     private final JavaPlugin plugin;
     private final ProtocolManager protocolManager;
@@ -256,73 +312,44 @@ public class NPCManager implements Listener {
         }
     }
 
-    private boolean isModernTeamLayout(PacketContainer team) {
-        return team.getOptionalStructures().size() > 0;
+    private static String teamNameFor(NPC npc) {
+        String teamName = "npc" + npc.getEntityId();
+        if (teamName.length() > 16) teamName = teamName.substring(0, 16);
+        return teamName;
     }
 
-    @SuppressWarnings("deprecation")
+
     private void hideNameTag(Player player, NPC npc, String profileName) {
         try {
-            String teamName = "npc" + npc.getEntityId();
-            if (teamName.length() > 16) teamName = teamName.substring(0, 16);
+            Scoreboard board = player.getScoreboard();
+            if (board == null) return;
 
-            PacketContainer team = protocolManager.createPacket(PacketType.Play.Server.SCOREBOARD_TEAM);
-            boolean modern = isModernTeamLayout(team);
+            String teamName = teamNameFor(npc);
+            Team team = board.getTeam(teamName);
+            if (team == null) team = board.registerNewTeam(teamName);
 
-            team.getStrings().write(0, teamName);
+            try {
+                team.setNameTagVisibility(NameTagVisibility.NEVER);
+            } catch (Throwable ignored) {
 
-            if (modern) {
-                team.getIntegers().write(0, 0);
-
-                Optional<InternalStructure> optStruct = team.getOptionalStructures().read(0);
-                if (optStruct.isPresent()) {
-                    InternalStructure struct = optStruct.get();
-                    try {
-                        struct.getChatComponents().write(0, WrappedChatComponent.fromText(teamName));
-                    } catch (Exception ignoredDisplayName) {
-                    }
-                    try {
-                        struct.getStrings().write(0, "never"); // nametagVisibility = NEVER
-                    } catch (Exception ignoredVisibility) {
-                    }
-                    team.getOptionalStructures().write(0, Optional.of(struct));
-                } else {
-                    plugin.getLogger().warning("SCOREBOARD_TEAM sem InternalStructure opcional presente — nametag do NPC '"
-                            + npc.getId() + "' pode não ser escondido nessa versão do servidor.");
-                }
-            } else {
-                team.getStrings()
-                        .write(1, teamName)
-                        .write(2, "")
-                        .write(3, "")
-                        .write(4, "never");
-                team.getIntegers().write(1, 0);
             }
 
-            team.getSpecificModifier(Collection.class).write(0, Collections.singletonList(profileName));
-
-            protocolManager.sendServerPacket(player, team);
+            if (!team.hasEntry(profileName)) {
+                team.addEntry(profileName);
+            }
         } catch (Exception e) {
             plugin.getLogger().warning("Não foi possível esconder o nametag do NPC '" + npc.getId()
-                    + "': " + e.getMessage() + " — confira a API de SCOREBOARD_TEAM da sua versão do ProtocolLib.");
+                    + "': " + e.getMessage());
         }
     }
 
     private void removeNameTagTeam(Player player, NPC npc) {
         try {
-            String teamName = "npc" + npc.getEntityId();
-            if (teamName.length() > 16) teamName = teamName.substring(0, 16);
+            Scoreboard board = player.getScoreboard();
+            if (board == null) return;
 
-            PacketContainer team = protocolManager.createPacket(PacketType.Play.Server.SCOREBOARD_TEAM);
-            team.getStrings().write(0, teamName);
-
-            if (isModernTeamLayout(team)) {
-                team.getIntegers().write(0, 1);
-            } else {
-                team.getIntegers().write(1, 1);
-            }
-
-            protocolManager.sendServerPacket(player, team);
+            Team team = board.getTeam(teamNameFor(npc));
+            if (team != null) team.unregister();
         } catch (Exception ignored) {
         }
     }
@@ -351,36 +378,93 @@ public class NPCManager implements Listener {
     @SuppressWarnings("deprecation")
     private void sendPlayerInfoAdd(Player player, WrappedGameProfile profile) {
         try {
-            PacketContainer packet = protocolManager.createPacket(PacketType.Play.Server.PLAYER_INFO);
-            PlayerInfoData data = new PlayerInfoData(profile, 0,
-                    EnumWrappers.NativeGameMode.SURVIVAL, WrappedChatComponent.fromText(profile.getName()));
 
-            boolean wroteAction = false;
             try {
-                packet.getPlayerInfoAction().write(0, EnumWrappers.PlayerInfoAction.ADD_PLAYER);
-                wroteAction = true;
+                PacketContainer legacy = protocolManager.createPacket(PacketType.Play.Server.PLAYER_INFO);
+                legacy.getPlayerInfoAction().write(0, EnumWrappers.PlayerInfoAction.ADD_PLAYER);
+                PlayerInfoData data = new PlayerInfoData(profile, 0,
+                        EnumWrappers.NativeGameMode.SURVIVAL, WrappedChatComponent.fromText(profile.getName()));
+                legacy.getPlayerInfoDataLists().write(0, Collections.singletonList(data));
+                protocolManager.sendServerPacket(player, legacy);
+                return;
             } catch (Exception legacyFormatUnavailable) {
             }
-            if (!wroteAction) {
-                try {
-                    EnumSet<EnumWrappers.PlayerInfoAction> actions = EnumSet.of(
-                            EnumWrappers.PlayerInfoAction.ADD_PLAYER,
-                            EnumWrappers.PlayerInfoAction.UPDATE_LISTED,
-                            EnumWrappers.PlayerInfoAction.UPDATE_LATENCY,
-                            EnumWrappers.PlayerInfoAction.UPDATE_GAME_MODE
-                    );
-                    packet.getPlayerInfoActions().write(0, actions);
-                } catch (Exception modernFormatUnavailable) {
-                    plugin.getLogger().warning("Não foi possível determinar o formato do pacote PLAYER_INFO: "
-                            + modernFormatUnavailable.getMessage());
+
+            if (PLAYER_INFO_PACKET_CTOR != null && PLAYER_INFO_ENTRY_CTOR != null && PLAYER_INFO_ACTION_CLASS != null) {
+                Object rawPacket = buildModernPlayerInfoAddPacket(profile);
+                if (rawPacket != null) {
+                    PacketContainer packet = new PacketContainer(PacketType.Play.Server.PLAYER_INFO, rawPacket);
+                    protocolManager.sendServerPacket(player, packet);
+                    return;
                 }
             }
 
-            packet.getPlayerInfoDataLists().write(0, Collections.singletonList(data));
-            protocolManager.sendServerPacket(player, packet);
+            plugin.getLogger().warning("Não foi possível montar o pacote PLAYER_INFO (ADD) para '"
+                    + profile.getName() + "' — nem o formato legado nem o moderno funcionaram nessa versão de servidor.");
         } catch (Exception e) {
             plugin.getLogger().warning("Erro enviando PLAYER_INFO: " + e.getMessage());
         }
+    }
+
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private Object buildModernPlayerInfoAddPacket(WrappedGameProfile profile) {
+        try {
+            Object gameProfileHandle = profile.getHandle();
+            Object displayNameHandle = WrappedChatComponent.fromText(profile.getName()).getHandle();
+
+            Class<?>[] entryParamTypes = PLAYER_INFO_ENTRY_CTOR.getParameterTypes();
+            Object[] entryArgs = new Object[entryParamTypes.length];
+            for (int i = 0; i < entryParamTypes.length; i++) {
+                entryArgs[i] = buildEntryArg(entryParamTypes[i], profile.getUUID(), gameProfileHandle, displayNameHandle);
+            }
+            Object entry = PLAYER_INFO_ENTRY_CTOR.newInstance(entryArgs);
+
+            EnumSet actions = EnumSet.noneOf((Class) PLAYER_INFO_ACTION_CLASS);
+            addActionIfPresent(actions, "ADD_PLAYER");
+            addActionIfPresent(actions, "UPDATE_LISTED");
+            addActionIfPresent(actions, "UPDATE_LATENCY");
+            addActionIfPresent(actions, "UPDATE_GAME_MODE");
+
+            Object secondArg = PLAYER_INFO_PACKET_CTOR_TAKES_COLLECTION
+                    ? Collections.singletonList(entry)
+                    : entry;
+
+            return PLAYER_INFO_PACKET_CTOR.newInstance(actions, secondArg);
+        } catch (Exception e) {
+            plugin.getLogger().warning("Falha ao montar pacote PLAYER_INFO moderno via reflection: " + e.getMessage());
+            return null;
+        }
+    }
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private static void addActionIfPresent(EnumSet actions, String constantName) {
+        for (Object c : PLAYER_INFO_ACTION_CLASS.getEnumConstants()) {
+            if (((Enum<?>) c).name().equals(constantName)) {
+                actions.add((Enum) c);
+                return;
+            }
+        }
+    }
+
+    private static Object buildEntryArg(Class<?> type, UUID uuid, Object gameProfileHandle, Object displayNameHandle) {
+        if (type == UUID.class) return uuid;
+        if (type.getName().equals("com.mojang.authlib.GameProfile")) return gameProfileHandle;
+        if (type == boolean.class || type == Boolean.class) return Boolean.TRUE;
+        if (type == int.class || type == Integer.class) return 0;
+        if (type == Optional.class) return Optional.empty();
+
+        if (type.isEnum()) {
+            for (Object c : type.getEnumConstants()) {
+                if (((Enum<?>) c).name().equals("SURVIVAL")) return c;
+            }
+            Object[] constants = type.getEnumConstants();
+            return constants.length > 0 ? constants[0] : null;
+        }
+
+        if (displayNameHandle != null && type.isInstance(displayNameHandle)) return displayNameHandle;
+
+        return null;
     }
 
     @SuppressWarnings("deprecation")

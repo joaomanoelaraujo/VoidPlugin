@@ -156,6 +156,273 @@ public final class BukkitUtils {
     }
 
 
+    /**
+     * Configs antigas (de antes do 1.13) as vezes guardam o item como o ID
+     * NUMERICO puro do Minecraft (ex: "384", "351:8") em vez do nome do
+     * Material. A partir do 1.13 o Bukkit removeu de vez o suporte a IDs
+     * numericos da API publica, entao nao tem "Material.getMaterial(int)"
+     * pra chamar mais — essa tabela é a nossa reconstrução manual da lista
+     * clássica de IDs (blocos 1-255, itens 256-452) pra conseguir traduzir
+     * esses configs antigos pro Material atual.
+     */
+    private static final Map<Integer, String> NUMERIC_LEGACY_ID = new HashMap<>();
+
+    /** Onde o "data value" muda o item (cor da lã, tipo de madeira, etc). */
+    private static final Map<Integer, Map<Short, String>> NUMERIC_LEGACY_VARIANTS = new HashMap<>();
+
+    private static void id(int id, String legacyName) {
+        NUMERIC_LEGACY_ID.put(id, legacyName.toUpperCase());
+    }
+
+    private static void variant(int id, int data, String legacyName) {
+        NUMERIC_LEGACY_VARIANTS
+                .computeIfAbsent(id, k -> new HashMap<>())
+                .put((short) data, legacyName.toUpperCase());
+    }
+
+    static {
+        // ---- Blocos (1-255) ----
+        id(1, "STONE");           variant(1, 1, "GRANITE");        variant(1, 2, "POLISHED_GRANITE");
+        variant(1, 3, "DIORITE"); variant(1, 4, "POLISHED_DIORITE"); variant(1, 5, "ANDESITE"); variant(1, 6, "POLISHED_ANDESITE");
+        id(2, "GRASS");
+        id(3, "DIRT");            variant(3, 1, "COARSE_DIRT");    variant(3, 2, "PODZOL");
+        id(4, "COBBLESTONE");
+        id(5, "WOOD");            variant(5, 1, "SPRUCE_PLANKS"); variant(5, 2, "BIRCH_PLANKS");
+        variant(5, 3, "JUNGLE_PLANKS"); variant(5, 4, "ACACIA_PLANKS"); variant(5, 5, "DARK_OAK_PLANKS");
+        id(6, "SAPLING");         variant(6, 1, "SPRUCE_SAPLING"); variant(6, 2, "BIRCH_SAPLING");
+        variant(6, 3, "JUNGLE_SAPLING"); variant(6, 4, "ACACIA_SAPLING"); variant(6, 5, "DARK_OAK_SAPLING");
+        id(7, "BEDROCK");
+        id(8, "WATER");           id(9, "STATIONARY_WATER");
+        id(10, "LAVA");           id(11, "STATIONARY_LAVA");
+        id(12, "SAND");           variant(12, 1, "RED_SAND");
+        id(13, "GRAVEL");
+        id(14, "GOLD_ORE");       id(15, "IRON_ORE");             id(16, "COAL_ORE");
+        id(17, "LOG");            variant(17, 1, "SPRUCE_LOG");    variant(17, 2, "BIRCH_LOG");     variant(17, 3, "JUNGLE_LOG");
+        id(18, "LEAVES");         variant(18, 1, "SPRUCE_LEAVES"); variant(18, 2, "BIRCH_LEAVES");  variant(18, 3, "JUNGLE_LEAVES");
+        id(19, "SPONGE");         variant(19, 1, "WET_SPONGE");
+        id(20, "GLASS");
+        id(21, "LAPIS_ORE");      id(22, "LAPIS_BLOCK");
+        id(23, "DISPENSER");
+        id(24, "SANDSTONE");      variant(24, 1, "CHISELED_SANDSTONE"); variant(24, 2, "SMOOTH_SANDSTONE");
+        id(25, "NOTE_BLOCK");     id(26, "BED_BLOCK");
+        id(27, "POWERED_RAIL");   id(28, "DETECTOR_RAIL");
+        id(29, "PISTON_STICKY_BASE");
+        id(30, "WEB");            id(31, "LONG_GRASS");           variant(31, 1, "GRASS");   variant(31, 2, "FERN");
+        id(32, "DEAD_BUSH");      id(33, "PISTON_BASE");          id(34, "PISTON_EXTENSION");
+        id(35, "WOOL");           variant(35, 0, "WHITE_WOOL");   variant(35, 1, "ORANGE_WOOL");   variant(35, 2, "MAGENTA_WOOL");
+        variant(35, 3, "LIGHT_BLUE_WOOL"); variant(35, 4, "YELLOW_WOOL");  variant(35, 5, "LIME_WOOL");
+        variant(35, 6, "PINK_WOOL");  variant(35, 7, "GRAY_WOOL");    variant(35, 8, "LIGHT_GRAY_WOOL");
+        variant(35, 9, "CYAN_WOOL");  variant(35, 10, "PURPLE_WOOL"); variant(35, 11, "BLUE_WOOL");
+        variant(35, 12, "BROWN_WOOL"); variant(35, 13, "GREEN_WOOL"); variant(35, 14, "RED_WOOL"); variant(35, 15, "BLACK_WOOL");
+        id(37, "YELLOW_FLOWER");  id(38, "RED_ROSE");
+        id(39, "BROWN_MUSHROOM"); id(40, "RED_MUSHROOM");
+        id(41, "GOLD_BLOCK");     id(42, "IRON_BLOCK");
+        id(43, "DOUBLE_STEP");    id(44, "STEP");
+        id(45, "BRICK");          id(46, "TNT");
+        id(47, "BOOKSHELF");      id(48, "MOSSY_COBBLESTONE");
+        id(49, "OBSIDIAN");       id(50, "TORCH");
+        id(51, "FIRE");           id(52, "MOB_SPAWNER");
+        id(53, "WOOD_STAIRS");    id(54, "CHEST");
+        id(55, "REDSTONE_WIRE");  id(56, "DIAMOND_ORE");
+        id(57, "DIAMOND_BLOCK");  id(58, "WORKBENCH");
+        id(59, "CROPS");          id(60, "SOIL");
+        id(61, "FURNACE");        id(62, "BURNING_FURNACE");
+        id(63, "SIGN_POST");      id(64, "WOOD_DOOR");
+        id(65, "LADDER");         id(66, "RAILS");
+        id(67, "COBBLESTONE_STAIRS"); id(68, "WALL_SIGN");
+        id(69, "LEVER");          id(70, "STONE_PLATE");
+        id(71, "IRON_DOOR_BLOCK"); id(72, "WOOD_PLATE");
+        id(73, "REDSTONE_ORE");   id(74, "GLOWING_REDSTONE_ORE");
+        id(75, "REDSTONE_TORCH_OFF"); id(76, "REDSTONE_TORCH_ON");
+        id(77, "STONE_BUTTON");   id(78, "SNOW");
+        id(79, "ICE");            id(80, "SNOW_BLOCK");
+        id(81, "CACTUS");         id(82, "CLAY");
+        id(83, "SUGAR_CANE_BLOCK"); id(84, "JUKEBOX");
+        id(85, "FENCE");          id(86, "PUMPKIN");
+        id(87, "NETHERRACK");     id(88, "SOUL_SAND");
+        id(89, "GLOWSTONE");      id(90, "PORTAL");
+        id(91, "JACK_O_LANTERN"); id(92, "CAKE_BLOCK");
+        id(93, "DIODE_BLOCK_OFF"); id(94, "DIODE_BLOCK_ON");
+        id(95, "STAINED_GLASS");  variant(95, 0, "WHITE_STAINED_GLASS"); variant(95, 1, "ORANGE_STAINED_GLASS");
+        variant(95, 2, "MAGENTA_STAINED_GLASS"); variant(95, 3, "LIGHT_BLUE_STAINED_GLASS"); variant(95, 4, "YELLOW_STAINED_GLASS");
+        variant(95, 5, "LIME_STAINED_GLASS"); variant(95, 6, "PINK_STAINED_GLASS"); variant(95, 7, "GRAY_STAINED_GLASS");
+        variant(95, 8, "LIGHT_GRAY_STAINED_GLASS"); variant(95, 9, "CYAN_STAINED_GLASS"); variant(95, 10, "PURPLE_STAINED_GLASS");
+        variant(95, 11, "BLUE_STAINED_GLASS"); variant(95, 12, "BROWN_STAINED_GLASS"); variant(95, 13, "GREEN_STAINED_GLASS");
+        variant(95, 14, "RED_STAINED_GLASS"); variant(95, 15, "BLACK_STAINED_GLASS");
+        id(96, "TRAP_DOOR");      id(97, "MONSTER_EGGS");
+        id(98, "SMOOTH_BRICK");   variant(98, 1, "MOSSY_STONE_BRICKS"); variant(98, 2, "CRACKED_STONE_BRICKS"); variant(98, 3, "CHISELED_STONE_BRICKS");
+        id(99, "HUGE_MUSHROOM_1"); id(100, "HUGE_MUSHROOM_2");
+        id(101, "IRON_FENCE");    id(102, "THIN_GLASS");
+        id(103, "MELON_BLOCK");   id(104, "PUMPKIN_STEM");
+        id(105, "MELON_STEM");    id(106, "VINE");
+        id(107, "FENCE_GATE");    id(108, "BRICK_STAIRS");
+        id(109, "SMOOTH_STAIRS"); id(110, "MYCEL");
+        id(111, "WATER_LILY");    id(112, "NETHER_BRICK");
+        id(113, "NETHER_FENCE");  id(114, "NETHER_BRICK_STAIRS");
+        id(115, "NETHER_WARTS");  id(116, "ENCHANTMENT_TABLE");
+        id(117, "BREWING_STAND"); id(118, "CAULDRON");
+        id(119, "ENDER_PORTAL");  id(120, "ENDER_PORTAL_FRAME");
+        id(121, "ENDER_STONE");   id(122, "DRAGON_EGG");
+        id(123, "REDSTONE_LAMP_OFF"); id(124, "REDSTONE_LAMP_ON");
+        id(125, "WOOD_DOUBLE_STEP"); id(126, "WOOD_STEP");
+        id(127, "COCOA");         id(128, "SANDSTONE_STAIRS");
+        id(129, "EMERALD_ORE");   id(130, "ENDER_CHEST");
+        id(131, "TRIPWIRE_HOOK"); id(132, "TRIPWIRE");
+        id(133, "EMERALD_BLOCK"); id(134, "SPRUCE_WOOD_STAIRS");
+        id(135, "BIRCH_WOOD_STAIRS"); id(136, "JUNGLE_WOOD_STAIRS");
+        id(137, "COMMAND"); id(138, "BEACON");
+        id(139, "COBBLE_WALL");   variant(139, 1, "MOSSY_COBBLESTONE_WALL");
+        id(140, "FLOWER_POT");    id(141, "CARROT");
+        id(142, "POTATO");        id(143, "WOOD_BUTTON");
+        id(145, "ANVIL");         id(146, "TRAPPED_CHEST");
+        id(147, "GOLD_PLATE");    id(148, "IRON_PLATE");
+        id(149, "REDSTONE_COMPARATOR_OFF"); id(150, "REDSTONE_COMPARATOR_ON");
+        id(151, "DAYLIGHT_DETECTOR"); id(152, "REDSTONE_BLOCK");
+        id(153, "QUARTZ_ORE");    id(154, "HOPPER");
+        id(155, "QUARTZ_BLOCK");  variant(155, 1, "CHISELED_QUARTZ_BLOCK"); variant(155, 2, "QUARTZ_PILLAR");
+        id(156, "QUARTZ_STAIRS"); id(157, "ACTIVATOR_RAIL");
+        id(158, "DROPPER");
+        id(159, "STAINED_CLAY");  variant(159, 0, "WHITE_TERRACOTTA"); variant(159, 1, "ORANGE_TERRACOTTA");
+        variant(159, 2, "MAGENTA_TERRACOTTA"); variant(159, 3, "LIGHT_BLUE_TERRACOTTA"); variant(159, 4, "YELLOW_TERRACOTTA");
+        variant(159, 5, "LIME_TERRACOTTA"); variant(159, 6, "PINK_TERRACOTTA"); variant(159, 7, "GRAY_TERRACOTTA");
+        variant(159, 8, "LIGHT_GRAY_TERRACOTTA"); variant(159, 9, "CYAN_TERRACOTTA"); variant(159, 10, "PURPLE_TERRACOTTA");
+        variant(159, 11, "BLUE_TERRACOTTA"); variant(159, 12, "BROWN_TERRACOTTA"); variant(159, 13, "GREEN_TERRACOTTA");
+        variant(159, 14, "RED_TERRACOTTA"); variant(159, 15, "BLACK_TERRACOTTA");
+        id(160, "STAINED_GLASS_PANE"); variant(160, 0, "WHITE_STAINED_GLASS_PANE"); variant(160, 1, "ORANGE_STAINED_GLASS_PANE");
+        variant(160, 2, "MAGENTA_STAINED_GLASS_PANE"); variant(160, 3, "LIGHT_BLUE_STAINED_GLASS_PANE"); variant(160, 4, "YELLOW_STAINED_GLASS_PANE");
+        variant(160, 5, "LIME_STAINED_GLASS_PANE"); variant(160, 6, "PINK_STAINED_GLASS_PANE"); variant(160, 7, "GRAY_STAINED_GLASS_PANE");
+        variant(160, 8, "LIGHT_GRAY_STAINED_GLASS_PANE"); variant(160, 9, "CYAN_STAINED_GLASS_PANE"); variant(160, 10, "PURPLE_STAINED_GLASS_PANE");
+        variant(160, 11, "BLUE_STAINED_GLASS_PANE"); variant(160, 12, "BROWN_STAINED_GLASS_PANE"); variant(160, 13, "GREEN_STAINED_GLASS_PANE");
+        variant(160, 14, "RED_STAINED_GLASS_PANE"); variant(160, 15, "BLACK_STAINED_GLASS_PANE");
+        id(161, "LEAVES_2");      variant(161, 0, "ACACIA_LEAVES"); variant(161, 1, "DARK_OAK_LEAVES");
+        id(162, "LOG_2");         variant(162, 0, "ACACIA_LOG"); variant(162, 1, "DARK_OAK_LOG");
+        id(163, "ACACIA_STAIRS"); id(164, "DARK_OAK_STAIRS");
+        id(165, "SLIME_BLOCK");   id(166, "BARRIER");
+        id(167, "IRON_TRAPDOOR"); id(168, "PRISMARINE"); variant(168, 1, "PRISMARINE_BRICKS"); variant(168, 2, "DARK_PRISMARINE");
+        id(169, "SEA_LANTERN");   id(170, "HAY_BLOCK");
+        id(171, "CARPET");        variant(171, 0, "WHITE_CARPET"); variant(171, 1, "ORANGE_CARPET"); variant(171, 2, "MAGENTA_CARPET");
+        variant(171, 3, "LIGHT_BLUE_CARPET"); variant(171, 4, "YELLOW_CARPET"); variant(171, 5, "LIME_CARPET");
+        variant(171, 6, "PINK_CARPET"); variant(171, 7, "GRAY_CARPET"); variant(171, 8, "LIGHT_GRAY_CARPET");
+        variant(171, 9, "CYAN_CARPET"); variant(171, 10, "PURPLE_CARPET"); variant(171, 11, "BLUE_CARPET");
+        variant(171, 12, "BROWN_CARPET"); variant(171, 13, "GREEN_CARPET"); variant(171, 14, "RED_CARPET"); variant(171, 15, "BLACK_CARPET");
+        id(172, "HARD_CLAY");     id(173, "COAL_BLOCK");
+        id(174, "PACKED_ICE");
+        id(175, "DOUBLE_PLANT");  variant(175, 0, "SUNFLOWER"); variant(175, 1, "LILAC"); variant(175, 2, "TALL_GRASS");
+        variant(175, 3, "LARGE_FERN"); variant(175, 4, "ROSE_BUSH"); variant(175, 5, "PEONY");
+        id(176, "STANDING_BANNER"); id(177, "WALL_BANNER");
+        id(178, "DAYLIGHT_DETECTOR_INVERTED"); id(179, "RED_SANDSTONE");
+        id(180, "RED_SANDSTONE_STAIRS"); id(181, "DOUBLE_STONE_SLAB2");
+        id(182, "STONE_SLAB2");   id(183, "SPRUCE_FENCE_GATE");
+        id(184, "BIRCH_FENCE_GATE"); id(185, "JUNGLE_FENCE_GATE");
+        id(186, "DARK_OAK_FENCE_GATE"); id(187, "ACACIA_FENCE_GATE");
+        id(188, "SPRUCE_FENCE");  id(189, "BIRCH_FENCE");
+        id(190, "JUNGLE_FENCE");  id(191, "DARK_OAK_FENCE");
+        id(192, "ACACIA_FENCE");  id(193, "SPRUCE_DOOR");
+        id(194, "BIRCH_DOOR");    id(195, "JUNGLE_DOOR");
+        id(196, "ACACIA_DOOR");   id(197, "DARK_OAK_DOOR");
+        id(198, "END_ROD");       id(199, "CHORUS_PLANT");
+        id(200, "CHORUS_FLOWER"); id(201, "PURPUR_BLOCK");
+        id(202, "PURPUR_PILLAR"); id(203, "PURPUR_STAIRS");
+        id(204, "PURPUR_DOUBLE_SLAB"); id(205, "PURPUR_SLAB");
+        id(206, "END_BRICKS");    id(207, "BEETROOT_BLOCK");
+        id(208, "GRASS_PATH");    id(209, "END_GATEWAY");
+        id(210, "COMMAND_REPEATING"); id(211, "COMMAND_CHAIN");
+        id(212, "FROSTED_ICE");   id(213, "MAGMA");
+        id(214, "NETHER_WART_BLOCK"); id(215, "RED_NETHER_BRICK");
+        id(216, "BONE_BLOCK");    id(217, "STRUCTURE_VOID");
+        id(218, "OBSERVER");      id(219, "WHITE_SHULKER_BOX");
+        id(234, "SHULKER_BOX");   id(235, "WHITE_GLAZED_TERRACOTTA");
+        id(251, "CONCRETE");      variant(251, 0, "WHITE_CONCRETE"); variant(251, 1, "ORANGE_CONCRETE"); variant(251, 2, "MAGENTA_CONCRETE");
+        variant(251, 3, "LIGHT_BLUE_CONCRETE"); variant(251, 4, "YELLOW_CONCRETE"); variant(251, 5, "LIME_CONCRETE");
+        variant(251, 6, "PINK_CONCRETE"); variant(251, 7, "GRAY_CONCRETE"); variant(251, 8, "LIGHT_GRAY_CONCRETE");
+        variant(251, 9, "CYAN_CONCRETE"); variant(251, 10, "PURPLE_CONCRETE"); variant(251, 11, "BLUE_CONCRETE");
+        variant(251, 12, "BROWN_CONCRETE"); variant(251, 13, "GREEN_CONCRETE"); variant(251, 14, "RED_CONCRETE"); variant(251, 15, "BLACK_CONCRETE");
+        id(252, "CONCRETE_POWDER"); variant(252, 0, "WHITE_CONCRETE_POWDER"); variant(252, 7, "GRAY_CONCRETE_POWDER");
+        id(255, "STRUCTURE_BLOCK");
+
+        // ---- Itens (256+) ----
+        id(256, "IRON_SPADE");    id(257, "IRON_PICKAXE");   id(258, "IRON_AXE");
+        id(259, "FLINT_AND_STEEL"); id(260, "APPLE");        id(261, "BOW");
+        id(262, "ARROW");         id(263, "COAL");           variant(263, 1, "CHARCOAL");
+        id(264, "DIAMOND");       id(265, "IRON_INGOT");     id(266, "GOLD_INGOT");
+        id(267, "IRON_SWORD");    id(268, "WOOD_SWORD");     id(269, "WOOD_SPADE");
+        id(270, "WOOD_PICKAXE");  id(271, "WOOD_AXE");       id(272, "STONE_SWORD");
+        id(273, "STONE_SPADE");   id(274, "STONE_PICKAXE");  id(275, "STONE_AXE");
+        id(276, "DIAMOND_SWORD"); id(277, "DIAMOND_SPADE");  id(278, "DIAMOND_PICKAXE");
+        id(279, "DIAMOND_AXE");   id(280, "STICK");          id(281, "BOWL");
+        id(282, "MUSHROOM_SOUP"); id(283, "GOLD_SWORD");     id(284, "GOLD_SPADE");
+        id(285, "GOLD_PICKAXE");  id(286, "GOLD_AXE");       id(287, "STRING");
+        id(288, "FEATHER");       id(289, "SULPHUR");        id(290, "WOOD_HOE");
+        id(291, "STONE_HOE");     id(292, "IRON_HOE");       id(293, "DIAMOND_HOE");
+        id(294, "GOLD_HOE");      id(295, "SEEDS");          id(296, "WHEAT");
+        id(297, "BREAD");         id(298, "LEATHER_HELMET"); id(299, "LEATHER_CHESTPLATE");
+        id(300, "LEATHER_LEGGINGS"); id(301, "LEATHER_BOOTS"); id(302, "CHAINMAIL_HELMET");
+        id(303, "CHAINMAIL_CHESTPLATE"); id(304, "CHAINMAIL_LEGGINGS"); id(305, "CHAINMAIL_BOOTS");
+        id(306, "IRON_HELMET");   id(307, "IRON_CHESTPLATE"); id(308, "IRON_LEGGINGS");
+        id(309, "IRON_BOOTS");    id(310, "DIAMOND_HELMET"); id(311, "DIAMOND_CHESTPLATE");
+        id(312, "DIAMOND_LEGGINGS"); id(313, "DIAMOND_BOOTS"); id(314, "GOLD_HELMET");
+        id(315, "GOLD_CHESTPLATE"); id(316, "GOLD_LEGGINGS"); id(317, "GOLD_BOOTS");
+        id(318, "FLINT");         id(319, "PORK");           id(320, "GRILLED_PORK");
+        id(321, "PAINTING");      id(322, "GOLDEN_APPLE");   variant(322, 1, "ENCHANTED_GOLDEN_APPLE");
+        id(323, "SIGN");          id(324, "WOOD_DOOR");      id(325, "BUCKET");
+        id(326, "WATER_BUCKET");  id(327, "LAVA_BUCKET");    id(328, "MINECART");
+        id(329, "SADDLE");        id(330, "IRON_DOOR");      id(331, "REDSTONE");
+        id(332, "SNOW_BALL");     id(333, "BOAT");           id(334, "LEATHER");
+        id(335, "MILK_BUCKET");   id(336, "CLAY_BRICK");     id(337, "CLAY_BALL");
+        id(338, "SUGAR_CANE");    id(339, "PAPER");          id(340, "BOOK");
+        id(341, "SLIME_BALL");    id(342, "STORAGE_MINECART"); id(343, "POWERED_MINECART");
+        id(344, "EGG");           id(345, "COMPASS");        id(346, "FISHING_ROD");
+        id(347, "WATCH");         id(348, "GLOWSTONE_DUST"); id(349, "RAW_FISH");
+        variant(349, 1, "RAW_SALMON"); variant(349, 2, "CLOWNFISH"); variant(349, 3, "PUFFERFISH");
+        id(350, "COOKED_FISH");   variant(350, 1, "COOKED_SALMON");
+        id(351, "INK_SACK");
+        variant(351, 0, "INK_SAC");     variant(351, 1, "ROSE_RED");    variant(351, 2, "CACTUS_GREEN");
+        variant(351, 3, "COCOA_BEANS"); variant(351, 4, "LAPIS_LAZULI"); variant(351, 5, "PURPLE_DYE");
+        variant(351, 6, "CYAN_DYE");    variant(351, 7, "LIGHT_GRAY_DYE"); variant(351, 8, "GRAY_DYE");
+        variant(351, 9, "PINK_DYE");    variant(351, 10, "LIME_DYE");   variant(351, 11, "YELLOW_DYE");
+        variant(351, 12, "LIGHT_BLUE_DYE"); variant(351, 13, "MAGENTA_DYE"); variant(351, 14, "ORANGE_DYE");
+        variant(351, 15, "BONE_MEAL");
+        id(352, "BONE");          id(353, "SUGAR");          id(354, "CAKE");
+        id(355, "BED");           id(356, "DIODE");          id(357, "COOKIE");
+        id(358, "MAP");           id(359, "SHEARS");         id(360, "MELON");
+        id(361, "PUMPKIN_SEEDS"); id(362, "MELON_SEEDS");    id(363, "RAW_BEEF");
+        id(364, "COOKED_BEEF");   id(365, "RAW_CHICKEN");    id(366, "COOKED_CHICKEN");
+        id(367, "ROTTEN_FLESH");  id(368, "ENDER_PEARL");    id(369, "BLAZE_ROD");
+        id(370, "GHAST_TEAR");    id(371, "GOLD_NUGGET");    id(372, "NETHER_STALK");
+        id(373, "POTION");        id(374, "GLASS_BOTTLE");   id(375, "SPIDER_EYE");
+        id(376, "FERMENTED_SPIDER_EYE"); id(377, "BLAZE_POWDER"); id(378, "MAGMA_CREAM");
+        id(379, "BREWING_STAND_ITEM"); id(380, "CAULDRON_ITEM"); id(381, "EYE_OF_ENDER");
+        id(382, "SPECKLED_MELON"); id(383, "MONSTER_EGG");   id(384, "EXP_BOTTLE");
+        id(385, "FIREBALL");      id(386, "BOOK_AND_QUILL"); id(387, "WRITTEN_BOOK");
+        id(388, "EMERALD");       id(389, "ITEM_FRAME");     id(390, "FLOWER_POT_ITEM");
+        id(391, "CARROT_ITEM");   id(392, "POTATO_ITEM");    id(393, "BAKED_POTATO");
+        id(394, "POISONOUS_POTATO"); id(395, "EMPTY_MAP");   id(396, "GOLDEN_CARROT");
+        id(397, "SKULL_ITEM");
+        variant(397, 0, "SKELETON_SKULL"); variant(397, 1, "WITHER_SKELETON_SKULL");
+        variant(397, 2, "ZOMBIE_HEAD");    variant(397, 3, "PLAYER_HEAD");
+        variant(397, 4, "CREEPER_HEAD");   variant(397, 5, "DRAGON_HEAD");
+        id(398, "CARROT_STICK");  id(399, "NETHER_STAR");    id(400, "PUMPKIN_PIE");
+        id(401, "FIREWORK");      id(402, "FIREWORK_CHARGE"); id(403, "ENCHANTED_BOOK");
+        id(404, "DIODE");         id(405, "NETHER_BRICK_ITEM"); id(406, "QUARTZ");
+        id(407, "EXPLOSIVE_MINECART"); id(408, "HOPPER_MINECART"); id(409, "PRISMARINE_SHARD");
+        id(410, "PRISMARINE_CRYSTALS"); id(411, "RABBIT");    id(412, "COOKED_RABBIT");
+        id(413, "RABBIT_STEW");   id(414, "RABBIT_FOOT");    id(415, "RABBIT_HIDE");
+        id(416, "ARMOR_STAND");   id(417, "IRON_BARDING");   id(418, "GOLD_BARDING");
+        id(419, "DIAMOND_BARDING"); id(420, "LEASH");        id(421, "NAME_TAG");
+        id(422, "COMMAND_MINECART"); id(423, "MUTTON");      id(424, "COOKED_MUTTON");
+        id(425, "BANNER");        id(427, "SPRUCE_DOOR_ITEM"); id(428, "BIRCH_DOOR_ITEM");
+        id(429, "JUNGLE_DOOR_ITEM"); id(430, "ACACIA_DOOR_ITEM"); id(431, "DARK_OAK_DOOR_ITEM");
+        id(432, "CHORUS_FRUIT");  id(433, "CHORUS_FRUIT_POPPED"); id(434, "BEETROOT");
+        id(435, "BEETROOT_SEEDS"); id(436, "BEETROOT_SOUP"); id(437, "DRAGONS_BREATH");
+        id(438, "SPLASH_POTION"); id(439, "SPECTRAL_ARROW"); id(440, "TIPPED_ARROW");
+        id(441, "LINGERING_POTION"); id(442, "SHIELD");      id(443, "ELYTRA");
+        id(444, "SPRUCE_BOAT");   id(445, "BIRCH_BOAT");     id(446, "JUNGLE_BOAT");
+        id(447, "ACACIA_BOAT");   id(448, "DARK_OAK_BOAT");  id(449, "TOTEM");
+        id(450, "SHULKER_SHELL"); id(452, "IRON_NUGGET");
+        id(2256, "GOLD_RECORD");  id(2257, "GREEN_RECORD");
+    }
+
+
     private static final Map<String, Color> COLOR_BY_NAME = new LinkedHashMap<>();
 
     static {
@@ -454,6 +721,13 @@ public final class BukkitUtils {
     private static Material resolveMaterial(String name, short data) {
         String upper = name.toUpperCase();
 
+        // Config antiga guardou o item como ID numérico puro (ex: "404", "351:8").
+        // Traduz usando a tabela NUMERIC_LEGACY_ID / NUMERIC_LEGACY_VARIANTS.
+        if (isNumericId(upper)) {
+            Material fromId = resolveNumericId(Integer.parseInt(upper), data);
+            if (fromId != null) return fromId;
+        }
+
         try { return Material.valueOf(upper); }
         catch (IllegalArgumentException ignored) {}
 
@@ -475,6 +749,46 @@ public final class BukkitUtils {
         LOGGER.warning("[BukkitUtils] Material desconhecido: " + name
                 + (data > 0 ? ":" + data : "") + " → usando STONE");
         return Material.STONE;
+    }
+
+    private static boolean isNumericId(String s) {
+        if (s.isEmpty()) return false;
+        for (int i = 0; i < s.length(); i++) {
+            if (!Character.isDigit(s.charAt(i))) return false;
+        }
+        return true;
+    }
+
+    /**
+     * Traduz um ID numérico clássico (1-452, 2256/2257) + data value pro nome
+     * legado correspondente (usando NUMERIC_LEGACY_VARIANTS quando o data value
+     * importa, senão NUMERIC_LEGACY_ID) e então resolve esse nome legado pro
+     * Material moderno de verdade, passando pela mesma cadeia de aliases usada
+     * pros nomes de texto (o nome guardado na tabela às vezes ainda é um nome
+     * antigo tipo "DIODE" ou "SKULL_ITEM", que também precisa de alias).
+     */
+    private static Material resolveNumericId(int id, short data) {
+        String legacyName = null;
+
+        Map<Short, String> variants = NUMERIC_LEGACY_VARIANTS.get(id);
+        if (variants != null) legacyName = variants.get(data);
+
+        if (legacyName == null) legacyName = NUMERIC_LEGACY_ID.get(id);
+        if (legacyName == null) return null;
+
+        try { return Material.valueOf(legacyName); }
+        catch (IllegalArgumentException ignored) {}
+
+        String modern = LEGACY_ALIAS.get(legacyName);
+        if (modern != null) {
+            try { return Material.valueOf(modern); }
+            catch (IllegalArgumentException ignored) {}
+
+            Material m = Material.matchMaterial(modern);
+            if (m != null) return m;
+        }
+
+        return Material.matchMaterial(legacyName);
     }
 
 
