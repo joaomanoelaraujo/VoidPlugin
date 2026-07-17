@@ -13,6 +13,7 @@ import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
+import org.bukkit.event.player.PlayerChangedWorldEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
@@ -47,7 +48,7 @@ public class NPCManager implements Listener {
 
             Constructor<?>[] entryCtors = entryClass.getDeclaredConstructors();
             if (entryCtors.length > 0) {
-                entryCtor = entryCtors[0]; // record só tem o construtor canônico
+                entryCtor = entryCtors[0];
                 entryCtor.setAccessible(true);
             }
 
@@ -96,6 +97,17 @@ public class NPCManager implements Listener {
 
     @EventHandler
     public void onJoin(PlayerJoinEvent event) {
+        Player player = event.getPlayer();
+
+        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            if (player.isOnline()) {
+                spawnAllFor(player);
+            }
+        }, 5L);
+    }
+
+    @EventHandler
+    public void onWorldChange(PlayerChangedWorldEvent event) {
         Player player = event.getPlayer();
 
         Bukkit.getScheduler().runTaskLater(plugin, () -> {
@@ -170,7 +182,11 @@ public class NPCManager implements Listener {
         NPC npc = new NPC(id, location);
         npcs.put(id.toLowerCase(), npc);
         Bukkit.getScheduler().runTask(plugin, () -> {
+            String npcWorld = location.getWorld() == null ? null : location.getWorld().getName();
             for (Player p : Bukkit.getOnlinePlayers()) {
+                if (npcWorld == null || !p.getWorld().getName().equals(npcWorld)) {
+                    continue;
+                }
                 spawnFor(npc, p);
             }
         });
@@ -212,14 +228,23 @@ public class NPCManager implements Listener {
 
     public void spawnAllToEveryone() {
         for (NPC npc : npcs.values()) {
+            String npcWorld = npc.getLocation().getWorld() == null ? null : npc.getLocation().getWorld().getName();
             for (Player p : Bukkit.getOnlinePlayers()) {
+                if (npcWorld == null || !p.getWorld().getName().equals(npcWorld)) {
+                    continue;
+                }
                 spawnFor(npc, p);
             }
         }
     }
 
     public void spawnAllFor(Player player) {
+        String playerWorld = player.getWorld().getName();
         for (NPC npc : npcs.values()) {
+            Location npcLocation = npc.getLocation();
+            if (npcLocation.getWorld() == null || !npcLocation.getWorld().getName().equals(playerWorld)) {
+                continue;
+            }
             spawnFor(npc, player);
         }
     }
