@@ -111,6 +111,7 @@ public final class VisibilityUtils {
     public static void updateVisibility(Player player) {
         Profile profile = Profile.getProfile(player.getName());
         Game<?> myGame = profile != null && profile.playingGame() ? profile.getGame() : null;
+        boolean playerIsSpectator = myGame != null && myGame.isSpectator(player);
 
         for (Player other : Bukkit.getOnlinePlayers()) {
             if (other.equals(player)) continue;
@@ -120,12 +121,22 @@ public final class VisibilityUtils {
 
             boolean sameRoom = Objects.equals(myGame, otherGame);
 
-            if (sameRoom) {
-                show(player, other);
-                show(other, player);
-            } else {
+            if (!sameRoom) {
                 hide(player, other);
                 hide(other, player);
+                continue;
+            }
+
+            boolean otherIsSpectator = otherGame != null && otherGame.isSpectator(other);
+            if (playerIsSpectator && !otherIsSpectator) {
+                show(player, other);
+                hide(other, player);
+            } else if (!playerIsSpectator && otherIsSpectator) {
+                hide(player, other);
+                show(other, player);
+            } else {
+                show(player, other);
+                show(other, player);
             }
         }
     }

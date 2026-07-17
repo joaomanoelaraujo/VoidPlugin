@@ -37,6 +37,24 @@ public final class BukkitUtils {
         IS_1_9_PLUS = has19;
     }
 
+    /**
+     * ItemMeta#setUnbreakable(boolean) so existe direto na interface a partir do
+     * Bukkit 1.11+. Em 1.8-1.10 (como o ItemMeta.java desse projeto confirma) o
+     * metodo mora dentro da classe aninhada ItemMeta.Spigot, acessada via
+     * meta.spigot(). Guardamos os dois Methods via reflection uma unica vez pra
+     * nao pagar o custo de resolver isso a cada chamada.
+     */
+    private static final Method SET_UNBREAKABLE_DIRECT = findMethod(ItemMeta.class, "setUnbreakable", boolean.class);
+    private static final Method SPIGOT_METHOD = findMethod(ItemMeta.class, "spigot");
+
+    private static Method findMethod(Class<?> clazz, String name, Class<?>... params) {
+        try {
+            return clazz.getMethod(name, params);
+        } catch (NoSuchMethodException ex) {
+            return null;
+        }
+    }
+
 
     private static final Map<String, String> LEGACY_ALIAS = new LinkedHashMap<>();
 
@@ -603,6 +621,9 @@ public final class BukkitUtils {
             } else if (opt.startsWith("skin>") && skull != null) {
                 String texture = opt.substring(5).trim();
                 if (!texture.isEmpty()) setSkullTexture(meta, texture);
+            } else if (opt.startsWith("unbreakable>")) {
+                boolean unbreakable = Boolean.parseBoolean(opt.substring(12).trim());
+                setUnbreakable(meta, unbreakable);
 
             } else if (opt.startsWith("pages>") && book != null) {
                 book.setPages(opt.substring(6).split("\\{pular}"));
@@ -681,6 +702,38 @@ public final class BukkitUtils {
         try { meta.addItemFlags(ItemFlag.HIDE_ENCHANTS); }
         catch (Exception ignored) {}
         item.setItemMeta(meta);
+    }
+
+    /**
+     * ItemMeta#setUnbreakable(boolean) só existe direto na interface a partir do
+     * Bukkit 1.11+. Em 1.8-1.10 o método mora em ItemMeta.Spigot, acessado via
+     * meta.spigot(). Tenta o método moderno primeiro (via reflection, já que o
+     * projeto compila contra uma API que pode ou não ter o método direto
+     * dependendo da versão do spigot-api usada no build) e cai pro spigot() se
+     * não existir.
+     */
+    private static void setUnbreakable(ItemMeta meta, boolean unbreakable) {
+        if (SET_UNBREAKABLE_DIRECT != null) {
+            try {
+                SET_UNBREAKABLE_DIRECT.invoke(meta, unbreakable);
+                return;
+            } catch (Exception e) {
+                LOGGER.warning("[BukkitUtils] Erro ao definir unbreakable (metodo direto): " + e.getMessage());
+            }
+        }
+
+        if (SPIGOT_METHOD != null) {
+            try {
+                Object spigot = SPIGOT_METHOD.invoke(meta);
+                spigot.getClass().getMethod("setUnbreakable", boolean.class).invoke(spigot, unbreakable);
+                return;
+            } catch (Exception e) {
+                LOGGER.warning("[BukkitUtils] Erro ao definir unbreakable (spigot): " + e.getMessage());
+            }
+        }
+
+        LOGGER.warning("[BukkitUtils] Nao foi possivel definir unbreakable - nem ItemMeta#setUnbreakable "
+                + "nem ItemMeta.Spigot#setUnbreakable estao disponiveis nessa versao de servidor.");
     }
 
 
