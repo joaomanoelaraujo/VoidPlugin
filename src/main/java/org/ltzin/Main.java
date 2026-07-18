@@ -18,6 +18,7 @@ import org.ltzin.hologram.HologramManager;
 import org.ltzin.listeners.PreferencesListener;
 import org.ltzin.listeners.VoidlessListeners;
 import org.ltzin.logger.VLogger;
+import org.ltzin.nms.NMS;
 import org.ltzin.npc.NPCManager;
 import org.ltzin.player.role.RoleRegistry;
 import org.ltzin.plugin.hook.VoidlessExpansion;
