@@ -21,6 +21,9 @@ public final class DragonConfig {
 
   private final double flapVelocityBoost;
 
+
+  private final double riderSeatHeight;
+
   private final int teleportResyncIntervalTicks;
 
   private DragonConfig(Builder builder) {
@@ -33,6 +36,7 @@ public final class DragonConfig {
     this.velocityInertia = builder.velocityInertia;
     this.lookaheadDistance = builder.lookaheadDistance;
     this.flapVelocityBoost = builder.flapVelocityBoost;
+    this.riderSeatHeight = builder.riderSeatHeight;
     this.teleportResyncIntervalTicks = builder.teleportResyncIntervalTicks;
   }
 
@@ -72,6 +76,10 @@ public final class DragonConfig {
     return flapVelocityBoost;
   }
 
+  public double getRiderSeatHeight() {
+    return riderSeatHeight;
+  }
+
   public int getTeleportResyncIntervalTicks() {
     return teleportResyncIntervalTicks;
   }
@@ -94,7 +102,8 @@ public final class DragonConfig {
     private double velocityInertia = 0.25;
     private double lookaheadDistance = 20.0;
     private double flapVelocityBoost = 3.5;
-    private int teleportResyncIntervalTicks = 100; // 5s a 20 ticks/s
+    private double riderSeatHeight = 3.0;
+    private int teleportResyncIntervalTicks = 100;
 
     private Builder() {
     }
@@ -141,6 +150,11 @@ public final class DragonConfig {
 
     public Builder flapVelocityBoost(double multiplier) {
       this.flapVelocityBoost = multiplier;
+      return this;
+    }
+
+    public Builder riderSeatHeight(double blocksAboveDragon) {
+      this.riderSeatHeight = blocksAboveDragon;
       return this;
     }
 

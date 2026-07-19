@@ -3,6 +3,8 @@ package org.ltzin.nms.enderdragon;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
 
+import java.util.List;
+
 
 public final class DragonController {
 
@@ -23,18 +25,21 @@ public final class DragonController {
     double dy = current.getY() - ride.getLastSentLocation().getY();
     double dz = current.getZ() - ride.getLastSentLocation().getZ();
 
+
+    List<Player> viewers = current.getWorld().getPlayers();
+
     boolean forceResync = ride.getTicksSinceTeleport() >= ride.getConfig().getTeleportResyncIntervalTicks();
     boolean fitsRelativeMove = packets.isWithinRelativeMoveRange(dx, dy, dz);
 
     boolean usedRelativeMove = false;
     if (!forceResync && fitsRelativeMove) {
       usedRelativeMove = packets.sendRelativeMove(
-              player, ride.getEntityId(), dx, dy, dz,
+              viewers, ride.getEntityId(), dx, dy, dz,
               current.getYaw(), current.getPitch(), true);
     }
 
     if (!usedRelativeMove) {
-      packets.sendTeleport(player, ride.getEntityId(), current);
+      packets.sendTeleport(viewers, ride.getEntityId(), current);
       ride.resetTeleportCounter();
     } else {
       ride.incrementTeleportCounter();
@@ -42,6 +47,9 @@ public final class DragonController {
 
     ride.markPositionSent();
 
-    packets.sendVelocity(player, ride.getEntityId(), ride.getVelocity(), ride.getConfig().getFlapVelocityBoost());
+    packets.sendVelocity(viewers, ride.getEntityId(), ride.getVelocity(), ride.getConfig().getFlapVelocityBoost());
+
+    Location seat = current.clone().add(0, ride.getConfig().getRiderSeatHeight(), 0);
+    packets.syncRealPlayerPosition(viewers, player, seat);
   }
 }

@@ -14,6 +14,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.util.Vector;
 
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
 import java.util.UUID;
@@ -78,14 +79,14 @@ public final class DragonPackets {
     }
   }
 
-  public int spawnDragon(Player player, Location location, int fakeEntityId, boolean invisible) {
+  public int spawnDragon(Collection<Player> viewers, Location location, int fakeEntityId, boolean invisible) {
     if (isLegacy()) {
-      return spawnLegacyDragon(player, location, invisible);
+      return spawnLegacyDragon(viewers, location, invisible);
     }
 
     UUID entityUuid = UUID.randomUUID();
     try {
-      boolean modernSpawn = minorVersion >= 19; // 1.19 fundiu SPAWN_ENTITY_LIVING em SPAWN_ENTITY
+      boolean modernSpawn = minorVersion >= 19;
       PacketContainer packet = protocol.createPacket(modernSpawn ? Server.SPAWN_ENTITY : Server.SPAWN_ENTITY_LIVING);
       packet.getModifier().writeDefaults();
 
@@ -99,20 +100,26 @@ public final class DragonPackets {
 
       float visualYaw = dragonVisualYaw(location.getYaw());
       packet.getBytes()
-              .write(0, (byte) (visualYaw * 256.0F / 360.0F))          // yaw do corpo (compensando o bug visual do Ender Dragon — ver dragonVisualYaw)
-              .write(1, (byte) (location.getPitch() * 256.0F / 360.0F)) // pitch (sem offset — o bug é só de yaw)
-              .write(2, (byte) (visualYaw * 256.0F / 360.0F));         // head yaw (= yaw do corpo)
+              .write(0, (byte) (visualYaw * 256.0F / 360.0F))
+              .write(1, (byte) (location.getPitch() * 256.0F / 360.0F))
+              .write(2, (byte) (visualYaw * 256.0F / 360.0F));
 
-      protocol.sendServerPacket(player, packet);
-      sendMetadata(player, fakeEntityId, invisible);
+      for (Player viewer : viewers) {
+        try {
+          protocol.sendServerPacket(viewer, packet);
+        } catch (Exception e) {
+          warn(viewer, "SPAWN_ENDER_DRAGON", e);
+        }
+      }
+      sendMetadata(viewers, fakeEntityId, invisible);
       return fakeEntityId;
     } catch (Exception e) {
-      warn(player, "SPAWN_ENDER_DRAGON", e);
+      logger.warning("[DragonPackets] Falha ao montar pacote SPAWN_ENDER_DRAGON: " + e.getMessage());
       return -1;
     }
   }
 
-  private void sendMetadata(Player player, int entityId, boolean invisible) {
+  private void sendMetadata(Collection<Player> viewers, int entityId, boolean invisible) {
     try {
       WrappedDataWatcherObject watcherObject = new WrappedDataWatcherObject(0, WrappedDataWatcher.Registry.get(Byte.class));
       WrappedWatchableObject watchable = new WrappedWatchableObject(watcherObject, (byte) (invisible ? 0x20 : 0x00));
@@ -120,59 +127,86 @@ public final class DragonPackets {
       PacketContainer packet = protocol.createPacket(Server.ENTITY_METADATA);
       packet.getIntegers().write(0, entityId);
       packet.getWatchableCollectionModifier().write(0, Collections.singletonList(watchable));
-      protocol.sendServerPacket(player, packet);
-    } catch (Exception e) {
-      warn(player, "DRAGON_METADATA", e);
-    }
-  }
 
-  public void mount(Player player, int vehicleEntityId, int passengerEntityId) {
-    try {
-      if (isLegacy()) {
-        PacketContainer packet = protocol.createPacket(Server.ATTACH_ENTITY);
-        packet.getIntegers()
-                .write(0, 0)                    // leashed = false (é montaria, não coleira)
-                .write(1, passengerEntityId)     // quem está sendo anexado
-                .write(2, vehicleEntityId);      // veículo (o dragão)
-        protocol.sendServerPacket(player, packet);
-      } else {
-        PacketContainer packet = protocol.createPacket(Server.MOUNT);
-        packet.getIntegers().write(0, vehicleEntityId);
-        packet.getIntegerArrays().write(0, new int[]{passengerEntityId});
-        protocol.sendServerPacket(player, packet);
+      for (Player viewer : viewers) {
+        try {
+          protocol.sendServerPacket(viewer, packet);
+        } catch (Exception e) {
+          warn(viewer, "DRAGON_METADATA", e);
+        }
       }
     } catch (Exception e) {
-      warn(player, "MOUNT_DRAGON", e);
+      logger.warning("[DragonPackets] Falha ao montar pacote DRAGON_METADATA: " + e.getMessage());
     }
   }
 
-  public void dismount(Player player, int vehicleEntityId, int passengerEntityId) {
+  public void mount(Collection<Player> viewers, int vehicleEntityId, int passengerEntityId) {
     try {
+      PacketContainer packet;
       if (isLegacy()) {
-        PacketContainer packet = protocol.createPacket(Server.ATTACH_ENTITY);
+        packet = protocol.createPacket(Server.ATTACH_ENTITY);
+        packet.getIntegers()
+                .write(0, 0)
+                .write(1, passengerEntityId)
+                .write(2, vehicleEntityId);
+      } else {
+        packet = protocol.createPacket(Server.MOUNT);
+        packet.getIntegers().write(0, vehicleEntityId);
+        packet.getIntegerArrays().write(0, new int[]{passengerEntityId});
+      }
+
+      for (Player viewer : viewers) {
+        try {
+          protocol.sendServerPacket(viewer, packet);
+        } catch (Exception e) {
+          warn(viewer, "MOUNT_DRAGON", e);
+        }
+      }
+    } catch (Exception e) {
+      logger.warning("[DragonPackets] Falha ao montar pacote MOUNT_DRAGON: " + e.getMessage());
+    }
+  }
+
+  public void dismount(Collection<Player> viewers, int vehicleEntityId, int passengerEntityId) {
+    try {
+      PacketContainer packet;
+      if (isLegacy()) {
+        packet = protocol.createPacket(Server.ATTACH_ENTITY);
         packet.getIntegers()
                 .write(0, 0)                  // leashed = false
                 .write(1, passengerEntityId)  // entidade que estava montada
                 .write(2, -1);                // -1 = desmontar
-        protocol.sendServerPacket(player, packet);
       } else {
-        PacketContainer packet = protocol.createPacket(Server.MOUNT);
+        packet = protocol.createPacket(Server.MOUNT);
         packet.getIntegers().write(0, vehicleEntityId);
         packet.getIntegerArrays().write(0, new int[0]); // sem passageiros
-        protocol.sendServerPacket(player, packet);
+      }
+
+      for (Player viewer : viewers) {
+        try {
+          protocol.sendServerPacket(viewer, packet);
+        } catch (Exception e) {
+          warn(viewer, "DISMOUNT", e);
+        }
       }
     } catch (Exception e) {
-      warn(player, "DISMOUNT", e);
+      logger.warning("[DragonPackets] Falha ao montar pacote DISMOUNT: " + e.getMessage());
     }
   }
 
-  public void destroyEntity(Player player, int entityId) {
+  public void destroyEntity(Collection<Player> viewers, int entityId) {
     try {
       PacketContainer packet = protocol.createPacket(Server.ENTITY_DESTROY);
       packet.getIntegerArrays().write(0, new int[]{entityId});
-      protocol.sendServerPacket(player, packet);
+      for (Player viewer : viewers) {
+        try {
+          protocol.sendServerPacket(viewer, packet);
+        } catch (Exception e) {
+          warn(viewer, "ENTITY_DESTROY", e);
+        }
+      }
     } catch (Exception e) {
-      warn(player, "ENTITY_DESTROY", e);
+      logger.warning("[DragonPackets] Falha ao montar pacote ENTITY_DESTROY: " + e.getMessage());
     }
   }
 
@@ -183,7 +217,7 @@ public final class DragonPackets {
             && Math.abs(dz) <= relativeMoveMaxDelta;
   }
 
-  public boolean sendRelativeMove(Player player, int entityId, double dx, double dy, double dz, float yaw, float pitch, boolean onGround) {
+  public boolean sendRelativeMove(Collection<Player> viewers, int entityId, double dx, double dy, double dz, float yaw, float pitch, boolean onGround) {
     try {
       PacketContainer packet = protocol.createPacket(Server.REL_ENTITY_MOVE_LOOK);
       packet.getIntegers().write(0, entityId);
@@ -209,11 +243,17 @@ public final class DragonPackets {
       }
 
       packet.getBooleans().write(0, onGround);
-      protocol.sendServerPacket(player, packet);
+
+      for (Player viewer : viewers) {
+        try {
+          protocol.sendServerPacket(viewer, packet);
+        } catch (Exception e) {
+          warn(viewer, "DRAGON_REL_MOVE", e);
+        }
+      }
       return true;
     } catch (Exception e) {
-
-      warn(player, "DRAGON_REL_MOVE", e);
+      logger.warning("[DragonPackets] Falha ao montar pacote DRAGON_REL_MOVE: " + e.getMessage());
       return false;
     }
   }
@@ -229,7 +269,7 @@ public final class DragonPackets {
   }
 
 
-  public void sendTeleport(Player player, int entityId, Location location) {
+  public void sendTeleport(Collection<Player> viewers, int entityId, Location location) {
     try {
       PacketContainer packet = protocol.createPacket(Server.ENTITY_TELEPORT);
       packet.getIntegers().write(0, entityId);
@@ -252,9 +292,15 @@ public final class DragonPackets {
               .write(1, (byte) (location.getPitch() * 256.0F / 360.0F));
       packet.getBooleans().write(0, true);
 
-      protocol.sendServerPacket(player, packet);
+      for (Player viewer : viewers) {
+        try {
+          protocol.sendServerPacket(viewer, packet);
+        } catch (Exception e) {
+          warn(viewer, "DRAGON_TELEPORT", e);
+        }
+      }
     } catch (Exception e) {
-      warn(player, "DRAGON_TELEPORT", e);
+      logger.warning("[DragonPackets] Falha ao montar pacote DRAGON_TELEPORT: " + e.getMessage());
     }
   }
 
@@ -262,7 +308,46 @@ public final class DragonPackets {
     return (int) Math.floor(coordinate * 32.0D);
   }
 
-  public void sendVelocity(Player player, int entityId, Vector velocityBlocksPerTick, double flapBoost) {
+
+  public void syncRealPlayerPosition(Collection<Player> viewers, Player rider, Location location) {
+    try {
+      int riderEntityId = rider.getEntityId();
+      PacketContainer packet = protocol.createPacket(Server.ENTITY_TELEPORT);
+      packet.getIntegers().write(0, riderEntityId);
+
+      if (isLegacy()) {
+        packet.getIntegers()
+                .write(1, fixedPoint(location.getX()))
+                .write(2, fixedPoint(location.getY()))
+                .write(3, fixedPoint(location.getZ()));
+      } else {
+        packet.getDoubles()
+                .write(0, location.getX())
+                .write(1, location.getY())
+                .write(2, location.getZ());
+      }
+
+      packet.getBytes()
+              .write(0, (byte) (location.getYaw() * 256.0F / 360.0F))
+              .write(1, (byte) (location.getPitch() * 256.0F / 360.0F));
+      packet.getBooleans().write(0, true);
+
+      for (Player viewer : viewers) {
+        if (viewer.equals(rider)) {
+          continue;
+        }
+        try {
+          protocol.sendServerPacket(viewer, packet);
+        } catch (Exception e) {
+          warn(viewer, "DRAGON_RIDER_TELEPORT", e);
+        }
+      }
+    } catch (Exception e) {
+      logger.warning("[DragonPackets] Falha ao montar pacote DRAGON_RIDER_TELEPORT: " + e.getMessage());
+    }
+  }
+
+  public void sendVelocity(Collection<Player> viewers, int entityId, Vector velocityBlocksPerTick, double flapBoost) {
     try {
       Vector reported = velocityBlocksPerTick.clone().multiply(flapBoost);
       short vx = encodeVelocityComponent(reported.getX());
@@ -279,9 +364,15 @@ public final class DragonPackets {
         packet.getShorts().write(0, vx).write(1, vy).write(2, vz);
       }
 
-      protocol.sendServerPacket(player, packet);
+      for (Player viewer : viewers) {
+        try {
+          protocol.sendServerPacket(viewer, packet);
+        } catch (Exception e) {
+          warn(viewer, "DRAGON_VELOCITY", e);
+        }
+      }
     } catch (Exception e) {
-      warn(player, "DRAGON_VELOCITY", e);
+      logger.warning("[DragonPackets] Falha ao montar pacote DRAGON_VELOCITY: " + e.getMessage());
     }
   }
 
@@ -290,7 +381,7 @@ public final class DragonPackets {
     return (short) Math.round(clamped * 8000.0);
   }
 
-  private int spawnLegacyDragon(Player player, Location location, boolean invisible) {
+  private int spawnLegacyDragon(Collection<Player> viewers, Location location, boolean invisible) {
     try {
       Object craftWorld = craftClass("CraftWorld").cast(location.getWorld());
       Object nmsWorld = craftWorld.getClass().getMethod("getHandle").invoke(craftWorld);
@@ -312,11 +403,18 @@ public final class DragonPackets {
       Object spawnPacket = nmsClass("PacketPlayOutSpawnEntityLiving")
               .getConstructor(nmsClass("EntityLiving"))
               .newInstance(nmsDragon);
-      sendRawPacket(player, spawnPacket);
+
+      for (Player viewer : viewers) {
+        try {
+          sendRawPacket(viewer, spawnPacket);
+        } catch (Exception e) {
+          warn(viewer, "SPAWN_ENDER_DRAGON_LEGACY", e);
+        }
+      }
 
       return (int) entityClass.getMethod("getId").invoke(nmsDragon);
     } catch (Exception e) {
-      warn(player, "SPAWN_ENDER_DRAGON_LEGACY", e);
+      logger.warning("[DragonPackets] Falha ao montar dragão legado: " + e.getMessage());
       return -1;
     }
   }

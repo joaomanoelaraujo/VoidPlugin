@@ -6,6 +6,8 @@ import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitTask;
 
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -69,10 +71,11 @@ public final class DragonManager {
     return createDragonMount(player, location, false, defaultConfig);
   }
 
-  /** Igual a {@link #createDragonMount(Player, Location)}, com controle de invisibilidade e config de voo. */
   public int createDragonMount(Player player, Location location, boolean invisible, DragonConfig config) {
     int fakeEntityId = fakeEntityIdSequence.getAndIncrement();
-    int spawnedEntityId = packets.spawnDragon(player, location, fakeEntityId, invisible);
+    List<Player> viewers = location.getWorld().getPlayers();
+
+    int spawnedEntityId = packets.spawnDragon(viewers, location, fakeEntityId, invisible);
     if (spawnedEntityId == -1) {
       return -1;
     }
@@ -80,7 +83,9 @@ public final class DragonManager {
     DragonRide ride = new DragonRide(player.getUniqueId(), spawnedEntityId, location, config);
     activeRides.put(player.getUniqueId(), ride);
 
-    packets.mount(player, spawnedEntityId, player.getEntityId());
+    packets.mount(Collections.singletonList(player), spawnedEntityId, player.getEntityId());
+    Location seat = location.clone().add(0, config.getRiderSeatHeight(), 0);
+    packets.syncRealPlayerPosition(viewers, player, seat);
     return spawnedEntityId;
   }
 
@@ -89,8 +94,9 @@ public final class DragonManager {
     if (ride == null) {
       return;
     }
+    List<Player> viewers = ride.getVirtualLocation().getWorld().getPlayers();
     player.teleport(ride.getVirtualLocation());
-    packets.destroyEntity(player, ride.getEntityId());
+    packets.destroyEntity(viewers, ride.getEntityId());
   }
 
   public void dismount(Player player) {
@@ -99,7 +105,7 @@ public final class DragonManager {
       return;
     }
     player.teleport(ride.getVirtualLocation());
-    packets.dismount(player, ride.getEntityId(), player.getEntityId());
+    packets.dismount(Collections.singletonList(player), ride.getEntityId(), player.getEntityId());
   }
 
   public boolean isRidingDragon(Player player) {
