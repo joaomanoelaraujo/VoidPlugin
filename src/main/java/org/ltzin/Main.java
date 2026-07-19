@@ -1,8 +1,11 @@
 package org.ltzin;
 
+import com.google.common.io.ByteArrayDataOutput;
+import com.google.common.io.ByteStreams;
 import me.clip.placeholderapi.PlaceholderAPI;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
+import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.ltzin.api.VoidlessAPI;
 import org.ltzin.api.database.StorageAPI;
@@ -20,6 +23,7 @@ import org.ltzin.listeners.VoidlessListeners;
 import org.ltzin.logger.VLogger;
 import org.ltzin.nms.NMS;
 import org.ltzin.npc.NPCManager;
+import org.ltzin.player.Profile;
 import org.ltzin.player.role.RoleRegistry;
 import org.ltzin.plugin.hook.VoidlessExpansion;
 import org.ltzin.tab.TabManager;
@@ -98,6 +102,12 @@ public class Main extends JavaPlugin {
         logger.info("Plugin iniciado com sucesso!");
     }
 
+    public static void sendServer(Profile profile, String name) {
+        if (!Main.getInstance().isEnabled()) {
+            return;
+        }
+    }
+    
     @Override
     public void onDisable() {
         if (storage != null) {

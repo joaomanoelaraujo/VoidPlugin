@@ -33,6 +33,7 @@ public abstract class Commands extends Command {
     new TagCmd();
     new HoloCommand(holo);
     new VReloadCmd();
+    new LobbyCommand();
     new NPCCommand(Main.getInstance(), npc);
   }
   
